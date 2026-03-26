@@ -1,0 +1,22 @@
+[project]
+name = "fiap-mlet-challenge-fase-1"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+
+# Produção - o que utilizaremos no src/...
+dependencies = [
+]
+
+[project.optional-dependencies]
+# EDA e Modelagem
+dev = [
+    "setuptools==82.0.1",
+    "mlflow==3.10.1",
+    "numpy==2.4.3",
+    "scikit-learn==1.8.0",
+    "jupyter==1.1.1",
+    "pyarrow==23.0.1",
+    "pandas==2.3.3"
+]

@@ -43,6 +43,10 @@ uv sync                  # instala apenas dependências de produção
 uv run src/main.py       # executa o script
 ```
 
+## ML Canvas
+
+- [Rascunho no Excalidraw](https://excalidraw.com/#json=brwKEsokY4bOocmWOZ99T,_CNgHlfQxs-9-s0miVXkWw)
+
 ## Integrantes
 
 | Nome | GitHub |

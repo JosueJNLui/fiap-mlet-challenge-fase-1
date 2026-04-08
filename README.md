@@ -35,6 +35,7 @@ Siga as instruções oficiais: https://docs.astral.sh/uv/getting-started/install
 ```bash
 uv sync --extra dev      # instala dependências de desenvolvimento
 uv run jupyter lab       # abre o Jupyter
+uv run mlflow server --backend-store-uri sqlite:///data/mlflow/churn_experiments.db --port 5000 # inicia o mlflow
 ```
 
 ### 3. Script final

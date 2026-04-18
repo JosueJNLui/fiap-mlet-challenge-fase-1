@@ -1,11 +1,3 @@
-# # Estágio de Build
-# FROM ghcr.io/astral-sh/uv:trixie AS builder
-
-# WORKDIR /app
-# COPY uv.lock pyproject.toml /app/
-
-# RUN uv sync --frozen --no-dev --no-install-project
-
 FROM python:3.13-slim
 
 WORKDIR /app

@@ -40,7 +40,9 @@ def create_app() -> FastAPI:
     app = FastAPI(title="fiap-mlet-challenge-fase-1", version="0.1.0")
 
     @app.middleware("http")
-    async def latency_and_logging_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def latency_and_logging_middleware(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         started_at = time.perf_counter()
         response = await call_next(request)
         duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
@@ -53,12 +55,16 @@ def create_app() -> FastAPI:
             "execution_time_ms": duration_ms,
             "user_id": None,
         }
-        logging.getLogger("fiap-mlet-challenge-fase-1").info("request.complete", extra={"extra": log_payload})
+        logging.getLogger("fiap-mlet-challenge-fase-1").info(
+            "request.complete", extra={"extra": log_payload}
+        )
         return response
 
     @app.get("/health", response_model=HealthResponse)
     async def health_check() -> HealthResponse:
-        return HealthResponse(status="ok", timestamp=datetime.utcnow().isoformat() + "Z")
+        return HealthResponse(
+            status="ok", timestamp=datetime.utcnow().isoformat() + "Z"
+        )
 
     return app
 

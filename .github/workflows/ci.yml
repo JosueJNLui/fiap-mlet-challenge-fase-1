@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.11.7"
+      - run: |
+          uv sync --extra dev
+          source .venv/bin/activate
+          pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.11.7"
+      - run: |
+          uv sync --extra dev
+          source .venv/bin/activate
+          ruff check src
+          ruff format --check src
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile

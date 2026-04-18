@@ -3,10 +3,13 @@ name = "fiap-mlet-challenge-fase-1"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 
 # Produção - o que utilizaremos no src/...
 dependencies = [
+    "fastapi>=0.136.0",
+    "pydantic>=2.8.0",
+    "uvicorn>=0.23.0",
     "imblearn>=0.0",
     "seaborn>=0.13.2",
 ]
@@ -14,6 +17,10 @@ dependencies = [
 [project.optional-dependencies]
 # EDA e Modelagem
 dev = [
+    "ty==0.0.31",
+    "pytest>=8.4.0",
+    "httpx>=0.26.0",
+    "ruff>=0.0.0",
     "setuptools==82.0.1",
     "mlflow==3.10.1",
     "numpy==2.4.3",

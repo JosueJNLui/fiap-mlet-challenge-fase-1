@@ -1,49 +1,77 @@
 from sklearn.model_selection import train_test_split
-from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+import numpy as np
 import pandas as pd
 
-def preprocessing(df: pd.DataFrame, test_size: float, random_state: int) -> tuple:
+def create_features(df: pd.DataFrame) -> pd.DataFrame:
 
-    # Remover customerID (identificador, não preditivo)
-    df_model = df.drop(columns=['customerID'])
+    # Tenure bucket
+    bins = [-1, 12, 24, 48, np.inf]
+    labels = ['0-12', '13-24', '25-48', '49+']
+    df['tenure_bucket'] = pd.cut(df['tenure'], bins=bins, labels=labels)
 
-    # Converter TotalCharges para numérico (11 valores em branco → NaN)
-    df_model['TotalCharges'] = pd.to_numeric(df_model['TotalCharges'], errors='coerce')
+    # # Avg Charges per month
+    df['avg_charges_per_month'] = df['TotalCharges'] / df['tenure'].replace(0, 1)
 
-    print(f"Missing values em TotalCharges: {df_model['TotalCharges'].isna().sum()}")
-    print(f"Registros afetados:\n{df_model[df_model['TotalCharges'].isna()][['tenure', 'MonthlyCharges', 'TotalCharges']]}\n")
+    # Charge vs EXpected
+    df['charge_vs_expected'] = df['MonthlyCharges'] - df['avg_charges_per_month']
+    df.drop(columns=['avg_charges_per_month'], inplace=True)
 
-    # --- Train/Test Split (ANTES de imputar para evitar data leakage) ---
-    X = df_model.drop(columns=['target'])
-    y = df_model['target']
+    # Num services
+    service_list = ['PhoneService', 'MultipleLines', 'OnlineSecurity', 
+                    'OnlineBackup', 'DeviceProtection', 'TechSupport', 
+                    'StreamingTV', 'StreamingMovies', 'InternetService']
+    df['num_services'] = df[service_list].sum(axis=1)
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=y
-    )
+    return df
 
-    # Criar cópias explícitas para evitar SettingWithCopyWarning
-    X_train = X_train.copy()
-    X_test = X_test.copy()
+def preprocessing(df: pd.DataFrame) -> tuple:
 
-    print(f"Shape treino: {X_train.shape}")
-    print(f"Shape teste:  {X_test.shape}")
+    # Limpeza inicial - Remover coluuna de ID
+    df = df.copy()
+    df.drop(columns=['customerID'], inplace=True)
 
-    # --- Imputação: fit no treino, transform em ambos ---
-    imputer = SimpleImputer(strategy='median')
+    # Converter para binário
+    binary_cols = ['Partner', 'Dependents', 'PhoneService'
+                   , 'PaperlessBilling', 'OnlineSecurity', 'OnlineBackup'
+                   , 'DeviceProtection', 'TechSupport', 'StreamingTV'
+                   , 'StreamingMovies', 'MultipleLines'
+                   ]
+    for col in binary_cols:
+        df[col] = df[col].map({'Yes': 1, 'No': 0, 'No internet service': 0, 'No phone service': 0})
+    
+    # Tratar coluna InternetService
+    df['InternetService'] = df['InternetService'].map({'DSL': 1, 'Fiber optic': 1, 'No': 0})
 
-    # Aplicar apenas na coluna TotalCharges
-    X_train['TotalCharges'] = imputer.fit_transform(X_train[['TotalCharges']])
-    X_test['TotalCharges'] = imputer.transform(X_test[['TotalCharges']])
+    # Tratar coluna TotalCharges
+    df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+    mask = df['TotalCharges'].isna()
+    df.loc[mask, 'TotalCharges'] = df.loc[mask, 'MonthlyCharges'] * df.loc[mask, 'tenure']
 
-    print(f"\nMissing values após imputação (treino): {X_train['TotalCharges'].isna().sum()}")
-    print(f"Missing values após imputação (teste):  {X_test['TotalCharges'].isna().sum()}")
-    print(f"Mediana usada para imputação: {imputer.statistics_[0]:.2f}")
+    # Aplicar transformação Logarítmica
+    df['TotalCharges'] = np.log1p(df['TotalCharges'])
 
-    return X_train, X_test, y_train, y_test
+    # Criação das Features
+    df = create_features(df)
+
+    # Remover colunas
+    cols_to_drop = [
+        'tenure', 
+        'gender', 
+        'SeniorCitizen', 
+        'Dependents', 
+        'PaperlessBilling'
+    ]
+    df.drop(columns=cols_to_drop, inplace=True)
+
+    # One-Hot Encoding usando get_dummies
+    df_encoded = hot_encoding(df)
+
+    return df_encoded
 
 def hot_encoding(df: pd.DataFrame) -> pd.DataFrame:
 
-    categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
     print(f"Colunas categóricas ({len(categorical_cols)}): {categorical_cols}\n")
 
     # Mostrar cardinalidade de cada coluna categórica
@@ -51,3 +79,35 @@ def hot_encoding(df: pd.DataFrame) -> pd.DataFrame:
         print(f"  {col}: {df[col].nunique()} valores únicos → {df[col].unique()}")
 
     return pd.get_dummies(df, columns=categorical_cols, drop_first=True)
+
+def prepare_train_val_test(df_encoded: pd.DataFrame, test_size: float, random_state: int, target_col='target', mode='mlp'):
+
+    X = df_encoded.drop(columns=[target_col])
+    y = df_encoded[target_col]
+
+    X_temp, X_test, y_temp, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=y
+    )
+
+    num_cols = ['MonthlyCharges', 'TotalCharges', 'charge_vs_expected', 'num_services']
+
+    if mode == 'mlp':
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp, test_size=test_size, random_state=random_state, stratify=y_temp
+        )
+        
+        scaler = StandardScaler()
+        
+        X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
+        X_val[num_cols]   = scaler.transform(X_val[num_cols])
+        X_test[num_cols]  = scaler.transform(X_test[num_cols])
+        
+        return X_train, X_val, X_test, y_train, y_val, y_test
+    
+    else:
+        scaler = StandardScaler()
+        
+        X_temp[num_cols] = scaler.fit_transform(X_temp[num_cols])
+        X_test[num_cols] = scaler.transform(X_test[num_cols])
+        
+        return X_temp, X_test, y_temp, y_test

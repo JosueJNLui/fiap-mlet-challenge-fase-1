@@ -1,206 +1,166 @@
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.isotonic import IsotonicRegression
+from sklearn.metrics import f1_score, precision_recall_curve
 
-def create_features(df: pd.DataFrame) -> pd.DataFrame:
 
-    # Tenure bucket
-    bins = [-1, 12, 24, 48, np.inf]
-    labels = ['0-12', '13-24', '25-48', '49+']
-    df['tenure_bucket'] = pd.cut(df['tenure'], bins=bins, labels=labels)
+NUMERIC_COLS = ("tenure", "MonthlyCharges", "TotalCharges")
 
-    # # Avg Charges per month
-    df['avg_charges_per_month'] = df['TotalCharges'] / df['tenure'].replace(0, 1)
+LTV_DEFAULT = 500
+COST_DEFAULT = 100
 
-    # Charge vs EXpected
-    df['charge_vs_expected'] = df['MonthlyCharges'] - df['avg_charges_per_month']
-    df.drop(columns=['avg_charges_per_month'], inplace=True)
+YES_NO_COLS = (
+    "Partner", "Dependents", "PhoneService", "MultipleLines",
+    "OnlineSecurity", "OnlineBackup", "DeviceProtection",
+    "TechSupport", "StreamingTV", "StreamingMovies", "PaperlessBilling",
+)
 
-    # Num services
-    service_list = ['PhoneService', 'MultipleLines', 'OnlineSecurity', 
-                    'OnlineBackup', 'DeviceProtection', 'TechSupport', 
-                    'StreamingTV', 'StreamingMovies', 'InternetService']
-    df['num_services'] = df[service_list].sum(axis=1)
+ONE_HOT_COLS = ("InternetService", "Contract", "PaymentMethod")
+
+
+def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    """Limpeza determinística sem feature engineering. Replica o pipeline de models-simpler."""
+    df = df.copy()
+    if "customerID" in df.columns:
+        df = df.drop(columns=["customerID"])
+
+    df = df[df["TotalCharges"] != " "].copy()
+    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"])
+
+    df = df.replace("No internet service", "No").replace("No phone service", "No")
+
+    for col in YES_NO_COLS:
+        df[col] = df[col].eq("Yes").astype("int64")
+    df["gender"] = df["gender"].eq("Female").astype("int64")
+
+    if "Churn" in df.columns:
+        df = df.rename(columns={"Churn": "target"})
+    if df["target"].dtype == object:
+        df["target"] = df["target"].map({"Yes": 1, "No": 0}).astype("int64")
 
     return df
 
-def preprocessing(df: pd.DataFrame) -> tuple:
 
-    # Limpeza inicial - Remover coluuna de ID
-    df = df.copy()
-    df.drop(columns=['customerID'], inplace=True)
+def encode_features(df: pd.DataFrame) -> pd.DataFrame:
+    """One-hot encoding sem drop_first. Resulta em 26 features para casar com input_shape da ANN."""
+    df = pd.get_dummies(df, columns=list(ONE_HOT_COLS), drop_first=False)
+    bool_cols = df.select_dtypes(include="bool").columns
+    df[bool_cols] = df[bool_cols].astype("int64")
+    return df
 
-    # Converter para binário
-    binary_cols = ['Partner', 'Dependents', 'PhoneService'
-                   , 'PaperlessBilling', 'OnlineSecurity', 'OnlineBackup'
-                   , 'DeviceProtection', 'TechSupport', 'StreamingTV'
-                   , 'StreamingMovies', 'MultipleLines'
-                   ]
-    for col in binary_cols:
-        df[col] = df[col].map({'Yes': 1, 'No': 0, 'No internet service': 0, 'No phone service': 0})
-    
-    # Tratar coluna InternetService
-    df['InternetService'] = df['InternetService'].map({'DSL': 1, 'Fiber optic': 1, 'No': 0})
 
-    # Tratar coluna TotalCharges
-    df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
-    mask = df['TotalCharges'].isna()
-    df.loc[mask, 'TotalCharges'] = df.loc[mask, 'MonthlyCharges'] * df.loc[mask, 'tenure']
+def preprocess(df: pd.DataFrame) -> pd.DataFrame:
+    return encode_features(clean_dataset(df))
 
-    # Aplicar transformação Logarítmica
-    df['TotalCharges'] = np.log1p(df['TotalCharges'])
 
-    # Criação das Features
-    df = create_features(df)
-
-    # Remover colunas
-    cols_to_drop = [
-        'tenure', 
-        'gender', 
-        'SeniorCitizen', 
-        'Dependents', 
-        'PaperlessBilling'
-    ]
-    df.drop(columns=cols_to_drop, inplace=True)
-
-    # One-Hot Encoding usando get_dummies
-    df_encoded = hot_encoding(df)
-
-    return df_encoded
-
-def hot_encoding(df: pd.DataFrame) -> pd.DataFrame:
-
-    categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
-    print(f"Colunas categóricas ({len(categorical_cols)}): {categorical_cols}\n")
-
-    # Mostrar cardinalidade de cada coluna categórica
-    for col in categorical_cols:
-        print(f"  {col}: {df[col].nunique()} valores únicos → {df[col].unique()}")
-
-    return pd.get_dummies(df, columns=categorical_cols, drop_first=True)
-
-def prepare_train_val_test(df_encoded: pd.DataFrame, test_size: float, random_state: int, target_col='target', mode='mlp'):
-
+def split_data(df_encoded: pd.DataFrame, test_size: float = 0.2, val_size: float = 0.2,
+               random_state: int = 42, target_col: str = "target"):
+    """Sempre retorna 6-tuple. Baselines desempacotam com `_` para val."""
     X = df_encoded.drop(columns=[target_col])
     y = df_encoded[target_col]
 
     X_temp, X_test, y_temp, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
-
-    num_cols = ['MonthlyCharges', 'TotalCharges', 'charge_vs_expected', 'num_services']
-
-    if mode == 'mlp':
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp, test_size=test_size, random_state=random_state, stratify=y_temp
-        )
-        
-        scaler = StandardScaler()
-        
-        X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
-        X_val[num_cols]   = scaler.transform(X_val[num_cols])
-        X_test[num_cols]  = scaler.transform(X_test[num_cols])
-        
-        return X_train, X_val, X_test, y_train, y_val, y_test
-    
-    else:
-        scaler = StandardScaler()
-        
-        X_temp[num_cols] = scaler.fit_transform(X_temp[num_cols])
-        X_test[num_cols] = scaler.transform(X_test[num_cols])
-        
-        return X_temp, X_test, y_temp, y_test
-
-
-# ---------------------------------------------------------------------------
-# Funções otimizadas para MLP (preservam mais sinal contínuo e categórico)
-# ---------------------------------------------------------------------------
-
-def mlp_create_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Feature engineering otimizado para MLP: mantém tenure contínuo e adiciona features derivadas."""
-
-    # Tenure bucket (feature adicional, mas NÃO substitui tenure)
-    bins = [-1, 12, 24, 48, np.inf]
-    labels = ['0-12', '13-24', '25-48', '49+']
-    df['tenure_bucket'] = pd.cut(df['tenure'], bins=bins, labels=labels)
-
-    # Avg charges per month (mantida como feature contínua)
-    df['avg_charges_per_month'] = df['TotalCharges'] / df['tenure'].replace(0, 1)
-
-    # Charge vs expected
-    df['charge_vs_expected'] = df['MonthlyCharges'] - df['avg_charges_per_month']
-
-    # Num services
-    service_list = ['PhoneService', 'MultipleLines', 'OnlineSecurity',
-                    'OnlineBackup', 'DeviceProtection', 'TechSupport',
-                    'StreamingTV', 'StreamingMovies']
-    df['num_services'] = df[service_list].sum(axis=1)
-
-    return df
-
-
-def mlp_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
-    """Preprocessing otimizado para MLP: preserva InternetService, SeniorCitizen,
-    PaperlessBilling, Dependents e tenure contínuo."""
-
-    df = df.copy()
-    df.drop(columns=['customerID'], inplace=True)
-
-    # Converter para binário
-    binary_cols = ['Partner', 'Dependents', 'PhoneService',
-                   'PaperlessBilling', 'OnlineSecurity', 'OnlineBackup',
-                   'DeviceProtection', 'TechSupport', 'StreamingTV',
-                   'StreamingMovies', 'MultipleLines']
-    for col in binary_cols:
-        df[col] = df[col].map({'Yes': 1, 'No': 0, 'No internet service': 0, 'No phone service': 0})
-
-    # InternetService: preservar distinção DSL vs Fiber (41.9% vs 19% churn)
-    df['has_fiber'] = (df['InternetService'] == 'Fiber optic').astype(int)
-    df['has_dsl'] = (df['InternetService'] == 'DSL').astype(int)
-    df.drop(columns=['InternetService'], inplace=True)
-
-    # TotalCharges
-    df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
-    mask = df['TotalCharges'].isna()
-    df.loc[mask, 'TotalCharges'] = df.loc[mask, 'MonthlyCharges'] * df.loc[mask, 'tenure']
-
-    # Log transform em TotalCharges
-    df['TotalCharges'] = np.log1p(df['TotalCharges'])
-
-    # Feature engineering (mantém tenure contínuo)
-    df = mlp_create_features(df)
-
-    # Dropar apenas gender (baixo poder preditivo)
-    df.drop(columns=['gender'], inplace=True)
-
-    # One-Hot Encoding
-    df_encoded = hot_encoding(df)
-
-    return df_encoded
-
-
-def mlp_prepare_train_val_test(df_encoded: pd.DataFrame, test_size: float,
-                                random_state: int, target_col='target'):
-    """Split e scaling com lista expandida de features contínuas para MLP."""
-
-    X = df_encoded.drop(columns=[target_col])
-    y = df_encoded[target_col]
-
-    X_temp, X_test, y_temp, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=y
-    )
-
     X_train, X_val, y_train, y_val = train_test_split(
-        X_temp, y_temp, test_size=test_size, random_state=random_state, stratify=y_temp
+        X_temp, y_temp, test_size=val_size, random_state=random_state, stratify=y_temp
     )
-
-    num_cols = ['tenure', 'MonthlyCharges', 'TotalCharges',
-                'charge_vs_expected', 'num_services', 'avg_charges_per_month']
-
-    scaler = StandardScaler()
-    X_train[num_cols] = scaler.fit_transform(X_train[num_cols])
-    X_val[num_cols]   = scaler.transform(X_val[num_cols])
-    X_test[num_cols]  = scaler.transform(X_test[num_cols])
-
     return X_train, X_val, X_test, y_train, y_val, y_test
+
+
+def scale_numeric(X_train, X_val, X_test, num_cols=NUMERIC_COLS):
+    """MinMax scaling. Fit no train, transform em val/test. Retorna scaler para persistência."""
+    cols = list(num_cols)
+    scaler = MinMaxScaler()
+    X_train, X_val, X_test = X_train.copy(), X_val.copy(), X_test.copy()
+    X_train[cols] = scaler.fit_transform(X_train[cols])
+    X_val[cols] = scaler.transform(X_val[cols])
+    X_test[cols] = scaler.transform(X_test[cols])
+    return X_train, X_val, X_test, scaler
+
+
+def pos_weight_balanced(y_train):
+    """Calcula pos_weight = n_neg / n_pos para BCEWithLogitsLoss (equivalente a class_weight='balanced').
+
+    Retorna torch.Tensor de shape (1,). Import local de torch para manter utils.py leve.
+    """
+    import torch
+    y = np.asarray(y_train)
+    n_pos = (y == 1).sum()
+    n_neg = (y == 0).sum()
+    if n_pos == 0:
+        return torch.tensor([1.0], dtype=torch.float32)
+    return torch.tensor([n_neg / n_pos], dtype=torch.float32)
+
+
+def lucro_liquido(y_true, y_pred, ltv=LTV_DEFAULT, cost=COST_DEFAULT):
+    """Lucro líquido = TP*(ltv-cost) - FP*cost - FN*ltv. Mesma fórmula do evaluate_model."""
+    y_true = np.asarray(y_true).astype(int)
+    y_pred = np.asarray(y_pred).astype(int)
+    tp = int(((y_true == 1) & (y_pred == 1)).sum())
+    fp = int(((y_true == 0) & (y_pred == 1)).sum())
+    fn = int(((y_true == 1) & (y_pred == 0)).sum())
+    return tp * (ltv - cost) - fp * cost - fn * ltv
+
+
+def find_threshold_max_profit(y_true, proba, ltv=LTV_DEFAULT, cost=COST_DEFAULT, grid=None):
+    """Threshold que maximiza lucro líquido. Varre grid de 0.01 a 0.99 (passo 0.01) por padrão."""
+    if grid is None:
+        grid = np.arange(0.01, 1.00, 0.01)
+    proba = np.asarray(proba)
+    best_thr = 0.5
+    best_profit = -np.inf
+    for thr in grid:
+        profit = lucro_liquido(y_true, (proba >= thr).astype(int), ltv=ltv, cost=cost)
+        if profit > best_profit:
+            best_profit = profit
+            best_thr = float(thr)
+    return best_thr, best_profit
+
+
+def find_threshold_max_f1(y_true, proba):
+    """Threshold que maximiza F1 da classe positiva. Usa precision_recall_curve para grid eficiente."""
+    y_true = np.asarray(y_true)
+    proba = np.asarray(proba)
+    prec, rec, thr = precision_recall_curve(y_true, proba)
+    # f1 = 2*p*r/(p+r); cuidado com divisão por zero
+    f1 = np.where((prec + rec) > 0, 2 * prec * rec / (prec + rec), 0.0)
+    # precision_recall_curve retorna len(thr) = len(prec)-1; alinhar
+    f1 = f1[:-1]
+    if len(f1) == 0:
+        return 0.5, 0.0
+    idx = int(np.argmax(f1))
+    return float(thr[idx]), float(f1[idx])
+
+
+def find_threshold_min_recall(y_true, proba, recall_target=0.75):
+    """Maior threshold que ainda atinge recall >= recall_target (maximiza precisão sob restrição)."""
+    y_true = np.asarray(y_true)
+    proba = np.asarray(proba)
+    grid = np.arange(0.01, 1.00, 0.01)
+    candidatos = []
+    for thr in grid:
+        pred = (proba >= thr).astype(int)
+        tp = int(((y_true == 1) & (pred == 1)).sum())
+        fn = int(((y_true == 1) & (pred == 0)).sum())
+        rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        if rec >= recall_target:
+            candidatos.append((float(thr), rec))
+    if not candidatos:
+        return 0.0, 0.0  # Nenhum threshold atinge o alvo; usar 0 (tudo positivo)
+    # Maior threshold que satisfaz a restrição => maior precisão
+    return max(candidatos, key=lambda x: x[0])
+
+
+def calibrate_probas(proba_val, y_val, *probas_to_transform):
+    """Calibração isotônica fitada no val. Retorna probas calibradas + calibrator.
+
+    Uso: proba_val_cal, proba_test_cal, calibrator = calibrate_probas(proba_val, y_val, proba_test)
+    """
+    calibrator = IsotonicRegression(out_of_bounds="clip")
+    calibrator.fit(proba_val, y_val)
+    transformed = [calibrator.transform(np.asarray(p)) for p in probas_to_transform]
+    proba_val_cal = calibrator.transform(np.asarray(proba_val))
+    return (proba_val_cal, *transformed, calibrator)

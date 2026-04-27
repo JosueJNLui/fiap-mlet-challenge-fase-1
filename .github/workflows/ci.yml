@@ -18,10 +18,8 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: "0.11.7"
-      - run: |
-          uv sync --extra dev
-          source .venv/bin/activate
-          pytest
+      - run: make install-dev
+      - run: make test
 
   lint:
     runs-on: ubuntu-latest
@@ -36,11 +34,8 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           version: "0.11.7"
-      - run: |
-          uv sync --extra dev
-          source .venv/bin/activate
-          ruff check src
-          ruff format --check src
+      - run: make install-dev
+      - run: make lint
       - uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile

@@ -18,7 +18,9 @@ class HealthResponse(BaseModel):
 class JSONLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record_dict = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
             "level": record.levelname,
             "message": record.getMessage(),
             **getattr(record, "extra", {}),
@@ -63,7 +65,8 @@ def create_app() -> FastAPI:
     @app.get("/health", response_model=HealthResponse)
     async def health_check() -> HealthResponse:
         return HealthResponse(
-            status="ok", timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            status="ok",
+            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         )
 
     return app

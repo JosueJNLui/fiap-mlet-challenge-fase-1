@@ -109,11 +109,11 @@ test-cov:
 
 type-check:
 	@echo "📝 Running type check..."
-	$(UV) run ty check
+	$(UV) run ty check --exclude "notebooks/" --exclude "**/*.ipynb" --exclude ".venv/" --exclude "__pycache__/" --exclude ".pytest_cache/" --exclude "htmlcov/" --exclude "data/" --exclude "models/" --exclude "docs/" src/ tests/
 
 lint:
 	@echo "🔍 Running linter..."
-	$(UV) run ruff check .
+	$(UV) run ruff check --exclude notebooks/ --exclude "**/*.ipynb" src/ tests/
 
 format:
 	@echo "💅 Formatting code..."

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, Response
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ class HealthResponse(BaseModel):
 class JSONLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record_dict = {
-            "timestamp": datetime.utcfromtimestamp(record.created).isoformat() + "Z",
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat().replace("+00:00", "Z"),
             "level": record.levelname,
             "message": record.getMessage(),
             **getattr(record, "extra", {}),
@@ -63,7 +63,7 @@ def create_app() -> FastAPI:
     @app.get("/health", response_model=HealthResponse)
     async def health_check() -> HealthResponse:
         return HealthResponse(
-            status="ok", timestamp=datetime.utcnow().isoformat() + "Z"
+            status="ok", timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         )
 
     return app

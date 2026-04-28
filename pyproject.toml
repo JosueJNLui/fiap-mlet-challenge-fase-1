@@ -23,5 +23,6 @@ dev = [
     "pandas==2.3.3",
     "torch==2.10.0",
     # "pysqlite3==0.6.0",
-    "dagshub==0.6.9"
+    "dagshub==0.6.9",
+    "scikit-posthocs==0.12.0"
 ]

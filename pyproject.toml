@@ -3,7 +3,7 @@ name = "fiap-mlet-challenge-fase-1"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 
 # Produção - o que utilizaremos no src/...
 dependencies = [

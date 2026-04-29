@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     prediction_threshold: float = 0.20303030303030303
     load_model_on_startup: bool = True
 
+    # OpenAPI / Swagger UI. Set any of these to an empty string to disable the
+    # corresponding endpoint in production (e.g. `DOCS_URL=`).
+    docs_url: str | None = "/docs"
+    redoc_url: str | None = "/redoc"
+    openapi_url: str | None = "/openapi.json"
+
 
 @lru_cache
 def get_settings() -> Settings:

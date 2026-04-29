@@ -18,6 +18,18 @@ Fluxo de uma predição:
 4. `ChurnPredictor.predict()`: preprocessing → scaler → tensor PyTorch → sigmoid → threshold (0.20303, otimizado em curva PR de negócio).
 5. Resposta inclui `churn_probability`, `prediction`, `threshold`, `model_version`, `request_id`.
 
+## Documentação interativa (Swagger / OpenAPI)
+
+Com a API rodando, abra um dos endpoints abaixo no browser:
+
+| URL | Descrição |
+|---|---|
+| <http://localhost:8000/docs> | Swagger UI — testar endpoints direto do browser (`Try it out`) |
+| <http://localhost:8000/redoc> | ReDoc — documentação narrativa, ideal para leitura |
+| <http://localhost:8000/openapi.json> | Spec OpenAPI 3.1 bruto, p/ gerar clientes (openapi-generator, etc.) |
+
+Cada endpoint expõe `summary`, `description`, exemplos completos de payload e respostas, e modelos documentados para os erros `422` (validação) e `503` (modelo não carregado). Em produção, defina `DOCS_URL=` (vazio) no ambiente para desabilitar a UI sem alterar código.
+
 ## Endpoints
 
 ### `GET /health`

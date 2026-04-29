@@ -15,6 +15,47 @@ from .api.routes import api_router
 from .config import Settings, get_settings
 from .infrastructure.mlflow_loader import load_predictor
 
+API_DESCRIPTION = """
+API REST de **previsão de churn** para clientes Telco, servindo o modelo
+MLP final (PyTorch) registrado no MLflow do DagsHub.
+
+## Como usar
+
+1. Faça `GET /health` para confirmar que o modelo foi carregado.
+2. Faça `POST /predict` com o payload Telco bruto — a API cuida do
+   pré-processamento, encoding, scaler e aplicação do threshold de negócio.
+3. Use o header `X-Request-ID` para correlacionar logs entre cliente e API.
+
+## Pipeline interno
+
+`payload Telco` → validação Pydantic → encoding categórico →
+`scaler.joblib` (MLflow) → MLP (PyTorch) → sigmoid → threshold otimizado
+em curva PR → `prediction`.
+
+## Observabilidade
+
+- Cada resposta inclui os headers `X-Process-Time` (latência em ms) e
+  `X-Request-ID`.
+- Logs estruturados em JSON com `request_id` propagado por toda a chain.
+""".strip()
+
+OPENAPI_TAGS = [
+    {
+        "name": "Health",
+        "description": (
+            "Liveness/readiness probes. Use para healthchecks de Kubernetes "
+            "e balanceadores antes de rotear tráfego para o pod."
+        ),
+    },
+    {
+        "name": "Prediction",
+        "description": (
+            "Inferência online do modelo de churn. Recebe um cliente Telco "
+            "bruto e devolve probabilidade calibrada + decisão binária."
+        ),
+    },
+]
+
 
 class JSONLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
@@ -70,8 +111,29 @@ def create_app(*, load_model: bool = True) -> FastAPI:
     configure_logging()
     settings = get_settings()
     app = FastAPI(
-        title="fiap-mlet-challenge-fase-1",
+        title="FIAP MLET — Churn Prediction API",
+        summary="Previsão de churn de clientes Telco com MLP (PyTorch + MLflow).",
+        description=API_DESCRIPTION,
         version="0.1.0",
+        contact={
+            "name": "FIAP MLET — Fase 1",
+            "url": "https://github.com/JosueJNLui/fiap-mlet-challenge-fase-1",
+        },
+        license_info={
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+        },
+        openapi_tags=OPENAPI_TAGS,
+        docs_url=settings.docs_url or None,
+        redoc_url=settings.redoc_url or None,
+        openapi_url=settings.openapi_url or None,
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": 1,
+            "displayRequestDuration": True,
+            "filter": True,
+            "tryItOutEnabled": True,
+            "persistAuthorization": True,
+        },
         lifespan=_build_lifespan(settings, load_model=load_model),
     )
 

@@ -3,26 +3,17 @@ name = "fiap-mlet-challenge-fase-1"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.13"
 
 # Produção - o que utilizaremos no src/...
 dependencies = [
-    "fastapi>=0.136.0",
-    "pydantic>=2.8.0",
-    "uvicorn>=0.23.0",
-    "starlette>=0.27.0",
-    "imbalanced-learn>=0.12.0",
+    "imblearn>=0.0",
     "seaborn>=0.13.2",
 ]
 
 [project.optional-dependencies]
 # EDA e Modelagem
 dev = [
-    "ty==0.0.31",
-    "pytest>=8.4.0",
-    "pytest-cov>=4.0.0",
-    "httpx>=0.26.0",
-    "ruff>=0.0.0",
     "setuptools==82.0.1",
     "mlflow==3.10.1",
     "numpy==2.4.3",
@@ -33,10 +24,5 @@ dev = [
     "torch==2.10.0",
     # "pysqlite3==0.6.0",
     "dagshub==0.6.9",
-    "matplotlib>=3.8.0",
-    "seaborn>=0.13.2",
+    "scikit-posthocs==0.12.0"
 ]
-
-[tool.pytest.ini_options]
-pythonpath = "."
-testpaths = ["tests"]

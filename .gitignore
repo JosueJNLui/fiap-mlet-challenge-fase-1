@@ -211,3 +211,7 @@ __marimo__/
 
 # MLflow
 data/mlflow/artifacts/
+
+# Claude Code
+.claude
+CLAUDE.local.md

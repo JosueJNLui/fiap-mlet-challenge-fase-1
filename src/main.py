@@ -3,16 +3,17 @@ from __future__ import annotations
 import json
 import logging
 import time
+import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, Response
-from pydantic import BaseModel
 from starlette.middleware.base import RequestResponseEndpoint
 
-
-class HealthResponse(BaseModel):
-    status: str = "ok"
-    timestamp: str
+from .api.routes import api_router
+from .config import Settings, get_settings
+from .infrastructure.mlflow_loader import load_predictor
 
 
 class JSONLogFormatter(logging.Formatter):
@@ -37,38 +38,69 @@ def configure_logging() -> None:
     root_logger.setLevel(logging.INFO)
 
 
-def create_app() -> FastAPI:
+def _build_lifespan(settings: Settings, *, load_model: bool):
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        logger = logging.getLogger("fiap-mlet-challenge-fase-1")
+        if load_model and settings.load_model_on_startup:
+            try:
+                app.state.predictor = load_predictor(settings)
+                logger.info(
+                    "model.loaded",
+                    extra={
+                        "extra": {
+                            "model_name": settings.model_name,
+                            "model_version": settings.model_version,
+                        }
+                    },
+                )
+            except Exception as exc:
+                logger.error(
+                    "model.load.failed",
+                    extra={"extra": {"error": str(exc), "type": type(exc).__name__}},
+                )
+                # Fail fast: process exits, orchestrator restarts.
+                raise
+        yield
+
+    return lifespan
+
+
+def create_app(*, load_model: bool = True) -> FastAPI:
     configure_logging()
-    app = FastAPI(title="fiap-mlet-challenge-fase-1", version="0.1.0")
+    settings = get_settings()
+    app = FastAPI(
+        title="fiap-mlet-challenge-fase-1",
+        version="0.1.0",
+        lifespan=_build_lifespan(settings, load_model=load_model),
+    )
 
     @app.middleware("http")
     async def latency_and_logging_middleware(
         request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
+        request.state.request_id = request_id
+
         started_at = time.perf_counter()
         response = await call_next(request)
         duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
         response.headers["X-Process-Time"] = str(duration_ms)
+        response.headers["X-Request-ID"] = request_id
 
         log_payload = {
             "path": request.url.path,
             "method": request.method,
             "status_code": response.status_code,
             "execution_time_ms": duration_ms,
-            "user_id": None,
+            "request_id": request_id,
         }
         logging.getLogger("fiap-mlet-challenge-fase-1").info(
             "request.complete", extra={"extra": log_payload}
         )
         return response
 
-    @app.get("/health", response_model=HealthResponse)
-    async def health_check() -> HealthResponse:
-        return HealthResponse(
-            status="ok",
-            timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        )
-
+    app.include_router(api_router)
     return app
 
 
@@ -78,4 +110,4 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=False)

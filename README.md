@@ -39,6 +39,7 @@ flowchart LR
 📚 **Documentação operacional:**
 - [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
 - [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md) — decisão real-time, SLA, scaling, DR.
+- [`deploy/README.md`](deploy/README.md) — arquitetura prática de deploy com Helm/Kubernetes e Terraform/AWS ECS.
 - [`docs/MONITORING.md`](docs/MONITORING.md) — métricas técnicas/modelo/negócio, alertas, playbook.
 
 ## Documentação interativa (Swagger / OpenAPI)
@@ -186,6 +187,7 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 ├── data/
 │   └── dataset/          # dataset original (Telco Customer Churn)
 ├── docs/                 # MODEL_CARD, ARCHITECTURE_DEPLOY, MONITORING
+├── deploy/               # Helm/Kubernetes, Terraform/AWS ECS e README de deploy
 ├── notebooks/            # EDA, treinamento, comparações
 ├── src/
 │   ├── main.py           # create_app() + lifespan + middleware

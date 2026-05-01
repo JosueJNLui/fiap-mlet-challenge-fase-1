@@ -46,6 +46,17 @@ resource "aws_ecs_task_definition" "app" {
 
       environment = local.container_environment
 
+      healthCheck = {
+        command = [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; request = urllib.request.Request('http://127.0.0.1:${var.container_port}${var.health_check_path}', headers={'User-Agent': 'ecs-container-healthcheck'}); urllib.request.urlopen(request, timeout=2).read()\""
+        ]
+        interval    = var.container_health_check_interval
+        timeout     = var.container_health_check_timeout
+        retries     = var.container_health_check_retries
+        startPeriod = var.container_health_check_start_period
+      }
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -63,6 +74,8 @@ resource "aws_ecs_service" "app" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = var.desired_count
+
+  health_check_grace_period_seconds = var.health_check_grace_period_seconds
 
   capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"

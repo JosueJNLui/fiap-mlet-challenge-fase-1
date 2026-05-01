@@ -209,8 +209,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# MLflow
-data/mlflow/artifacts/
+# MLflow (legacy local store; tracking is now on DagsHub)
+data/mlflow/
 
 # Claude Code
 .claude

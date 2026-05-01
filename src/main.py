@@ -6,7 +6,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import RequestResponseEndpoint
@@ -60,7 +60,7 @@ OPENAPI_TAGS = [
 class JSONLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record_dict = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc)
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC)
             .isoformat()
             .replace("+00:00", "Z"),
             "level": record.levelname,

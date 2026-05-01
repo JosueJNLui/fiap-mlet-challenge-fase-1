@@ -20,6 +20,27 @@ Fluxo de uma predição:
 4. `ChurnPredictor.predict()`: preprocessing → scaler → tensor PyTorch → sigmoid → threshold (0.20303, otimizado em curva PR de negócio).
 5. Resposta inclui `churn_probability`, `prediction`, `threshold`, `model_version`, `request_id`.
 
+```mermaid
+flowchart LR
+    Client[Cliente]
+    LB[Load Balancer]
+    API[FastAPI + uvicorn]
+    Pre[preprocessing<br/>28 features]
+    Sc[StandardScaler]
+    M[MLP PyTorch<br/>+ threshold]
+    MLflow[(MLflow / DagsHub<br/>Model Registry)]
+
+    Client -->|POST /predict| LB --> API
+    API --> Pre --> Sc --> M --> API
+    API -->|200 churn_probability| Client
+    MLflow -.->|startup load| API
+```
+
+📚 **Documentação operacional:**
+- [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
+- [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md) — decisão real-time, SLA, scaling, DR.
+- [`docs/MONITORING.md`](docs/MONITORING.md) — métricas técnicas/modelo/negócio, alertas, playbook.
+
 ## Documentação interativa (Swagger / OpenAPI)
 
 Com a API rodando, abra um dos endpoints abaixo no browser:
@@ -163,10 +184,8 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 ## Estrutura do repositório
 ```
 ├── data/
-│   ├── dataset/          # dataset original
-│   └── mlflow/           # store local (não usado em prod)
-├── docs/
-├── models/
+│   └── dataset/          # dataset original (Telco Customer Churn)
+├── docs/                 # MODEL_CARD, ARCHITECTURE_DEPLOY, MONITORING
 ├── notebooks/            # EDA, treinamento, comparações
 ├── src/
 │   ├── main.py           # create_app() + lifespan + middleware
@@ -177,7 +196,8 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 ├── tests/
 │   ├── test_health_endpoint.py
 │   ├── test_predict_endpoint.py
-│   └── application/      # preprocessing, predictor
+│   ├── application/      # preprocessing, predictor
+│   └── integration/      # MLflow real (skipados por padrão)
 ├── Dockerfile
 ├── Makefile
 ├── pyproject.toml

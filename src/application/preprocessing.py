@@ -123,7 +123,7 @@ def _apply_one_hot(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def preprocess_one(payload: dict[str, Any]) -> pd.DataFrame:
-    """Turns a single raw Telco payload into a 1×28 DataFrame.
+    """Turns a single raw Telco payload into a 1x28 DataFrame.
 
     Output columns are aligned to ``EXPECTED_FEATURE_ORDER`` (training-time
     feature order). One-hot encoding is applied manually because pandas'

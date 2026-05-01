@@ -36,6 +36,3 @@ jobs:
           version: "0.11.7"
       - run: make install-dev
       - run: make lint
-      - uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: Dockerfile

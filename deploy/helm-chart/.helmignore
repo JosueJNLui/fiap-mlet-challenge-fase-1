@@ -1,0 +1,13 @@
+.git/
+.github/
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.tmp
+*.bak
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+coverage.xml

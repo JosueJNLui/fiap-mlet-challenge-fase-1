@@ -1,0 +1,92 @@
+helmDefaults:
+  atomic: false
+  cleanupOnFail: true
+  wait: true
+  timeout: 300
+
+releases:
+  - name: fiap-mlet
+    namespace: fiap-mlet
+    createNamespace: true
+    chart: ./helm-chart
+    values:
+      - replicaCount: 2
+
+        image:
+          repository: ghcr.io/josuejnlui/fiap-mlet-challenge-fase-1
+          tag: feat-ci-docker
+          pullPolicy: IfNotPresent
+
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 8000
+
+        ingress:
+          enabled: true
+          className: nginx
+          annotations: {}
+          hosts:
+            - host: fiap-mlet.local
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls: []
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 768Mi
+
+        autoscaling:
+          enabled: false
+          minReplicas: 1
+          maxReplicas: 3
+          targetCPUUtilizationPercentage: 80
+          # targetMemoryUtilizationPercentage: 80
+
+        startupProbe:
+          enabled: true
+          httpGet:
+            path: /health
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+
+        livenessProbe:
+          enabled: true
+          httpGet:
+            path: /health
+          initialDelaySeconds: 0
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          enabled: true
+          httpGet:
+            path: /health
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        env:
+          MLFLOW_TRACKING_URI: "https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow"
+          MLFLOW_TRACKING_USERNAME: "JosueJNLui"
+          MODEL_NAME: "Churn_MLP_Final_Production"
+          MODEL_VERSION: "8"
+          PREDICTION_THRESHOLD: "0.20303030303030303"
+          LOAD_MODEL_ON_STARTUP: "true"
+
+        secretEnv:
+          enabled: true
+          values:
+            MLFLOW_TRACKING_PASSWORD: ""
+
+        nodeSelector:
+          kubernetes.io/arch: amd64

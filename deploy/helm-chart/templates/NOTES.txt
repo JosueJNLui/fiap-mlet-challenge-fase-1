@@ -1,0 +1,13 @@
+1. Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ (index $host.paths 0).path }}
+{{- end }}
+{{- else }}
+  kubectl port-forward svc/{{ include "fiap-mlet.fullname" . }} 8000:{{ .Values.service.port }}
+  http://127.0.0.1:8000
+{{- end }}
+
+2. Configure the MLflow token before production use:
+  helm upgrade --install {{ .Release.Name }} . \
+    --set secretEnv.values.MLFLOW_TRACKING_PASSWORD=<dagshub-token>

@@ -3,16 +3,27 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import torch
 
 from src.application.predictor import ChurnPredictor
+from src.application.preprocessing import EXPECTED_FEATURE_ORDER
 
 
 class _IdentityScaler:
     """Stand-in for sklearn StandardScaler that returns input untouched."""
 
-    def transform(self, X: np.ndarray) -> np.ndarray:
-        return X
+    def transform(self, X: pd.DataFrame) -> np.ndarray:
+        return X.to_numpy()
+
+
+class _RecordingScaler:
+    def __init__(self) -> None:
+        self.received: pd.DataFrame | None = None
+
+    def transform(self, X: pd.DataFrame) -> np.ndarray:
+        self.received = X
+        return X.to_numpy()
 
 
 class _ConstantLogitModel(torch.nn.Module):
@@ -74,3 +85,19 @@ def test_predictor_label_below_threshold() -> None:
     result = predictor.predict(_payload())
     assert result.probability < 0.5
     assert result.label is False
+
+
+def test_predictor_sends_named_dataframe_to_scaler() -> None:
+    scaler = _RecordingScaler()
+    predictor = ChurnPredictor(
+        model=_ConstantLogitModel(0.0),
+        scaler=scaler,
+        threshold=0.5,
+        version="test",
+    )
+
+    predictor.predict(_payload())
+
+    assert scaler.received is not None
+    assert isinstance(scaler.received, pd.DataFrame)
+    assert list(scaler.received.columns) == EXPECTED_FEATURE_ORDER

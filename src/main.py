@@ -78,6 +78,32 @@ def configure_logging() -> None:
     root_logger.handlers = [handler]
     root_logger.setLevel(logging.INFO)
 
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.handlers = []
+    access_logger.propagate = False
+    access_logger.disabled = True
+
+
+def _is_suppressed_health_check(request: Request) -> bool:
+    if request.url.path != "/health":
+        return False
+
+    user_agent = request.headers.get("user-agent", "").lower()
+    client_host = request.client.host if request.client else ""
+    suppressed_user_agents = (
+        "kube-probe",
+        "kube-proxy",
+        "elb-healthchecker",
+        "amazon-route53-health-check-service",
+        "ecs-container-healthcheck",
+    )
+    is_known_probe = any(agent in user_agent for agent in suppressed_user_agents)
+    is_local_ecs_probe = user_agent.startswith("python-urllib/") and client_host in (
+        "127.0.0.1",
+        "::1",
+    )
+    return is_known_probe or is_local_ecs_probe
+
 
 def _build_lifespan(settings: Settings, *, load_model: bool):
     @asynccontextmanager
@@ -150,16 +176,17 @@ def create_app(*, load_model: bool = True) -> FastAPI:
         response.headers["X-Process-Time"] = str(duration_ms)
         response.headers["X-Request-ID"] = request_id
 
-        log_payload = {
-            "path": request.url.path,
-            "method": request.method,
-            "status_code": response.status_code,
-            "execution_time_ms": duration_ms,
-            "request_id": request_id,
-        }
-        logging.getLogger("fiap-mlet-challenge-fase-1").info(
-            "request.complete", extra={"extra": log_payload}
-        )
+        if not _is_suppressed_health_check(request):
+            log_payload = {
+                "path": request.url.path,
+                "method": request.method,
+                "status_code": response.status_code,
+                "execution_time_ms": duration_ms,
+                "request_id": request_id,
+            }
+            logging.getLogger("fiap-mlet-challenge-fase-1").info(
+                "request.complete", extra={"extra": log_payload}
+            )
         return response
 
     app.include_router(api_router)

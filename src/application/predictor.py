@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 import numpy as np
+import pandas as pd
 import torch
 
 from .preprocessing import preprocess_one
@@ -17,7 +18,7 @@ class PredictionResult:
 
 
 class _Scaler(Protocol):
-    def transform(self, X: np.ndarray) -> np.ndarray: ...
+    def transform(self, X: pd.DataFrame) -> np.ndarray: ...  # pragma: no cover
 
 
 class ChurnPredictor:
@@ -43,7 +44,7 @@ class ChurnPredictor:
 
     def predict(self, payload: dict[str, Any]) -> PredictionResult:
         features = preprocess_one(payload)
-        scaled = self.scaler.transform(features.to_numpy())
+        scaled = self.scaler.transform(features)
         tensor = torch.tensor(scaled, dtype=torch.float32)
         with torch.no_grad():
             logits = self.model(tensor)

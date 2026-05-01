@@ -13,7 +13,7 @@ variable "project_name" {
 variable "container_image" {
   description = "Container image used by the ECS task."
   type        = string
-  default     = "ghcr.io/josuejnlui/fiap-mlet-challenge-fase-1:feat-ci-docker"
+  default     = "ghcr.io/josuejnlui/fiap-mlet-challenge-fase-1:fix-ouput-logs"
 }
 
 variable "desired_count" {
@@ -44,6 +44,36 @@ variable "health_check_path" {
   description = "HTTP path used by the ALB target group health check."
   type        = string
   default     = "/health"
+}
+
+variable "health_check_grace_period_seconds" {
+  description = "Seconds ECS waits before evaluating load balancer health checks for a new task."
+  type        = number
+  default     = 300
+}
+
+variable "container_health_check_interval" {
+  description = "Seconds between ECS container health check attempts."
+  type        = number
+  default     = 30
+}
+
+variable "container_health_check_timeout" {
+  description = "Seconds to wait before an ECS container health check attempt times out."
+  type        = number
+  default     = 5
+}
+
+variable "container_health_check_retries" {
+  description = "Consecutive ECS container health check failures required before marking the container unhealthy."
+  type        = number
+  default     = 3
+}
+
+variable "container_health_check_start_period" {
+  description = "Startup grace period in seconds before ECS counts container health check failures."
+  type        = number
+  default     = 120
 }
 
 variable "model_name" {

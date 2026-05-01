@@ -1,5 +1,7 @@
 # fiap-mlet-challenge-fase-1
 
+[![Codecov](https://codecov.io/gh/JosueJNLui/fiap-mlet-challenge-fase-1/graph/badge.svg)](https://app.codecov.io/gh/JosueJNLui/fiap-mlet-challenge-fase-1)
+
 Previsão de churn de clientes com base no dataset Telco Customer Churn. API REST em FastAPI servindo o modelo MLP final (PyTorch) registrado no MLflow do DagsHub.
 
 ## Arquitetura do sistema
@@ -163,12 +165,21 @@ A imagem usa `mlflow-skinny` + `torch+cpu`, pesa ~1GB (vs ~3.5GB com defaults).
 
 ```bash
 make test          # 14 testes hermético (não exigem DagsHub)
+make test-cov      # testes + coverage.xml/htmlcov para Codecov
 make lint          # ruff
 make type-check    # ty
 make check         # tudo + format check
 ```
 
 Testes usam `dependency_overrides` do FastAPI para injetar um `FakePredictor`, então não precisam de credenciais nem rede.
+
+### Cobertura com Codecov
+
+A pipeline de CI executa `make test-cov` em todo `pull_request`, gera `coverage.xml` com `pytest-cov` e envia o relatório para o [Codecov](https://app.codecov.io/gh/JosueJNLui/fiap-mlet-challenge-fase-1) usando `codecov/codecov-action@v5`.
+
+Para habilitar o upload no GitHub Actions, primeiro ative o repositório `JosueJNLui/fiap-mlet-challenge-fase-1` no [Codecov](https://app.codecov.io/gh/JosueJNLui/fiap-mlet-challenge-fase-1). Depois copie o token desse mesmo repositório e cadastre o segredo `CODECOV_TOKEN` em `Settings > Secrets and variables > Actions`.
+
+Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Codecov não encontrou um repositório ativo para o token/slug usado. Revise se o repositório está habilitado no Codecov e se o `CODECOV_TOKEN` pertence exatamente a `JosueJNLui/fiap-mlet-challenge-fase-1`. O arquivo `codecov.yml` configura os status checks de projeto e patch com tolerância de 1% para pequenas variações de cobertura.
 
 ## Estrutura do repositório
 ```

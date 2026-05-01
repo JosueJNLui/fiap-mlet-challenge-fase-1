@@ -2,7 +2,7 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /uvx /bin/
+RUN pip install --no-cache-dir --upgrade uv==0.11.7
 
 COPY uv.lock pyproject.toml /app/
 

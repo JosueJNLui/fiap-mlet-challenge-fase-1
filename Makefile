@@ -104,8 +104,8 @@ test-verbose:
 
 test-cov:
 	@echo "🧪 Running tests with coverage..."
-	$(UV) run pytest --cov=src --cov-report=html --cov-report=term --cov-fail-under=80
-	@echo "✅ Coverage report generated in htmlcov/index.html"
+	$(UV) run pytest --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=80
+	@echo "✅ Coverage reports generated in coverage.xml and htmlcov/index.html"
 
 type-check:
 	@echo "📝 Running type check..."

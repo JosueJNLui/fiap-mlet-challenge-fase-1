@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fiap-mlet-challenge-fase-1
+description: Helm chart for the FIAP MLET churn prediction API.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

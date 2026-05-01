@@ -89,13 +89,20 @@ def _is_suppressed_health_check(request: Request) -> bool:
         return False
 
     user_agent = request.headers.get("user-agent", "").lower()
+    client_host = request.client.host if request.client else ""
     suppressed_user_agents = (
         "kube-probe",
         "kube-proxy",
         "elb-healthchecker",
         "amazon-route53-health-check-service",
+        "ecs-container-healthcheck",
     )
-    return any(agent in user_agent for agent in suppressed_user_agents)
+    is_known_probe = any(agent in user_agent for agent in suppressed_user_agents)
+    is_local_ecs_probe = user_agent.startswith("python-urllib/") and client_host in (
+        "127.0.0.1",
+        "::1",
+    )
+    return is_known_probe or is_local_ecs_probe
 
 
 def _build_lifespan(settings: Settings, *, load_model: bool):

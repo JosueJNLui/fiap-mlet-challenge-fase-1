@@ -2,8 +2,9 @@ import logging
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
-from src.main import configure_logging
+from src.main import _is_suppressed_health_check, configure_logging
 
 
 def test_health_endpoint_returns_ok(client: TestClient) -> None:
@@ -54,6 +55,7 @@ def test_health_endpoint_logs_non_probe_requests(
         "kube-proxy/1.30",
         "ELB-HealthChecker/2.0",
         "Amazon-Route53-Health-Check-Service",
+        "ecs-container-healthcheck",
     ],
 )
 def test_health_endpoint_skips_probe_request_logs(
@@ -69,3 +71,35 @@ def test_health_endpoint_skips_probe_request_logs(
         and getattr(record, "extra", {}).get("path") == "/health"
         for record in caplog.records
     )
+
+
+def test_health_endpoint_logs_external_python_urllib_requests(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="fiap-mlet-challenge-fase-1")
+
+    client.get("/health", headers={"user-agent": "Python-urllib/3.13"})
+
+    assert any(
+        record.name == "fiap-mlet-challenge-fase-1"
+        and record.getMessage() == "request.complete"
+        and getattr(record, "extra", {}).get("path") == "/health"
+        for record in caplog.records
+    )
+
+
+def test_health_filter_skips_local_python_urllib_probe() -> None:
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/health",
+            "headers": [(b"user-agent", b"Python-urllib/3.13")],
+            "client": ("127.0.0.1", 12345),
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "query_string": b"",
+        }
+    )
+
+    assert _is_suppressed_health_check(request) is True

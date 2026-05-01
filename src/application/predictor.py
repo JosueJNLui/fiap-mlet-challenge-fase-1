@@ -18,7 +18,7 @@ class PredictionResult:
 
 
 class _Scaler(Protocol):
-    def transform(self, X: pd.DataFrame) -> np.ndarray: ...
+    def transform(self, X: pd.DataFrame) -> np.ndarray: ...  # pragma: no cover
 
 
 class ChurnPredictor:

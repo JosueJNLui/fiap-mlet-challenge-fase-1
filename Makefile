@@ -104,12 +104,12 @@ test-verbose:
 
 test-cov:
 	@echo "🧪 Running tests with coverage..."
-	$(UV) run pytest --cov=src --cov-report=html --cov-report=term
+	$(UV) run pytest --cov=src --cov-report=html --cov-report=term --cov-fail-under=80
 	@echo "✅ Coverage report generated in htmlcov/index.html"
 
 type-check:
 	@echo "📝 Running type check..."
-	$(UV) run ty check --exclude "notebooks/" --exclude "**/*.ipynb" --exclude ".venv/" --exclude "__pycache__/" --exclude ".pytest_cache/" --exclude "htmlcov/" --exclude "data/" --exclude "models/" --exclude "docs/" src/ tests/
+	$(UV) run ty check --exclude "notebooks/" --exclude "**/*.ipynb" --exclude ".venv/" --exclude "__pycache__/" --exclude ".pytest_cache/" --exclude "htmlcov/" --exclude "data/" --exclude "docs/" src/ tests/
 
 lint:
 	@echo "🔍 Running linter..."
@@ -138,6 +138,8 @@ clean:
 	find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name ".coverage" -delete
+	find . -type d -name ".ipynb_checkpoints" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "mlruns" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Cleanup complete"
 
 # ============================================================================

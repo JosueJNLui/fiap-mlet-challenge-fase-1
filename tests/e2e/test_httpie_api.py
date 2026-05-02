@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import socket
 import subprocess
@@ -22,6 +23,14 @@ class HttpieResponse:
     body: dict[str, Any]
     returncode: int
     stderr: str
+
+
+@dataclass(frozen=True)
+class InvalidParameterCase:
+    name: str
+    overrides: dict[str, str]
+    expected_field: str
+    expected_error_type: str
 
 
 def _free_port() -> int:
@@ -116,6 +125,13 @@ def _run_httpie(
         for key, value in [line.split(": ", 1)]
     }
     body = json.loads(body_text) if body_text.strip() else {}
+
+    if os.environ.get("E2E_HTTP_DEBUG") == "1":
+        print("\n--- HTTPie response ---")
+        print(completed.stdout)
+        if completed.stderr:
+            print("--- HTTPie stderr ---")
+            print(completed.stderr)
 
     assert status_code == expected_status, completed.stdout + completed.stderr
     return HttpieResponse(
@@ -236,35 +252,89 @@ def test_predict_accepts_common_boundary_payloads(
     assert isinstance(response.body["prediction"], bool)
 
 
+INVALID_PARAMETER_CASES = [
+    InvalidParameterCase(
+        name="invalid_contract_enum",
+        overrides={"Contract": "Daily"},
+        expected_field="Contract",
+        expected_error_type="literal_error",
+    ),
+    InvalidParameterCase(
+        name="invalid_gender_enum",
+        overrides={"gender": "Other"},
+        expected_field="gender",
+        expected_error_type="literal_error",
+    ),
+    InvalidParameterCase(
+        name="case_sensitive_enum_value",
+        overrides={"Partner": "yes"},
+        expected_field="Partner",
+        expected_error_type="literal_error",
+    ),
+    InvalidParameterCase(
+        name="negative_tenure",
+        overrides={"tenure:": "-1"},
+        expected_field="tenure",
+        expected_error_type="greater_than_equal",
+    ),
+    InvalidParameterCase(
+        name="tenure_above_limit",
+        overrides={"tenure:": "121"},
+        expected_field="tenure",
+        expected_error_type="less_than_equal",
+    ),
+    InvalidParameterCase(
+        name="invalid_senior_citizen",
+        overrides={"SeniorCitizen:": "2"},
+        expected_field="SeniorCitizen",
+        expected_error_type="literal_error",
+    ),
+    InvalidParameterCase(
+        name="negative_monthly_charge",
+        overrides={"MonthlyCharges:": "-0.01"},
+        expected_field="MonthlyCharges",
+        expected_error_type="greater_than_equal",
+    ),
+    InvalidParameterCase(
+        name="wrong_type_for_tenure",
+        overrides={"tenure": "twenty-four"},
+        expected_field="tenure",
+        expected_error_type="int_parsing",
+    ),
+    InvalidParameterCase(
+        name="wrong_type_for_monthly_charge",
+        overrides={"MonthlyCharges": "seventy-five"},
+        expected_field="MonthlyCharges",
+        expected_error_type="float_parsing",
+    ),
+]
+
+
 @pytest.mark.parametrize(
-    ("case", "overrides", "expected_field"),
-    [
-        ("invalid_enum", {"Contract": "Daily"}, "Contract"),
-        ("negative_tenure", {"tenure:": "-1"}, "tenure"),
-        ("tenure_above_limit", {"tenure:": "121"}, "tenure"),
-        ("invalid_senior_citizen", {"SeniorCitizen:": "2"}, "SeniorCitizen"),
-        ("negative_monthly_charge", {"MonthlyCharges:": "-0.01"}, "MonthlyCharges"),
-        ("wrong_type_for_tenure", {"tenure": "twenty-four"}, "tenure"),
-    ],
+    "case",
+    INVALID_PARAMETER_CASES,
+    ids=[case.name for case in INVALID_PARAMETER_CASES],
 )
 def test_predict_rejects_invalid_parameters(
     httpie_bin: str,
     base_url: str,
-    case: str,
-    overrides: dict[str, str],
-    expected_field: str,
+    case: InvalidParameterCase,
 ) -> None:
     response = _run_httpie(
         httpie_bin,
         "POST",
         f"{base_url}/predict",
-        f"X-Request-ID:{case}",
-        *_valid_predict_args(**overrides),
+        f"X-Request-ID:{case.name}",
+        *_valid_predict_args(**case.overrides),
         expected_status=422,
     )
 
     assert response.returncode == 4
-    assert any(item["loc"][-1] == expected_field for item in response.body["detail"])
+    assert any(
+        item["loc"][-1] == case.expected_field
+        and item["type"] == case.expected_error_type
+        for item in response.body["detail"]
+    ), response.body["detail"]
 
 
 def test_predict_rejects_missing_required_parameter(

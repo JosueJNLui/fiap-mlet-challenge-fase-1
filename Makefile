@@ -1,4 +1,4 @@
-.PHONY: help install install-dev sync build docker-build docker-run run test lint type-check format clean
+.PHONY: help install install-dev sync build docker-build docker-run run test test-e2e-httpie lint type-check format clean
 
 # Variáveis
 PYTHON := python3
@@ -29,6 +29,7 @@ help:
 	@echo ""
 	@echo "🧪 Testing & Code Quality:"
 	@echo "  make test              → Run pytest"
+	@echo "  make test-e2e-httpie   → Run isolated HTTPie E2E tests"
 	@echo "  make test-verbose      → Run pytest with verbose output"
 	@echo "  make test-cov          → Run pytest with coverage"
 	@echo "  make type-check        → Run type checking (ty)"
@@ -97,6 +98,10 @@ dev:
 test:
 	@echo "🧪 Running tests..."
 	$(UV) run pytest
+
+test-e2e-httpie:
+	@echo "🧪 Running isolated HTTPie E2E tests..."
+	$(UV) run pytest tests/e2e/test_httpie_api.py -q
 
 test-verbose:
 	@echo "🧪 Running tests (verbose)..."

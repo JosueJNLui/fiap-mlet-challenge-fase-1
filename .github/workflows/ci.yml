@@ -20,6 +20,8 @@ jobs:
           version: "0.11.7"
       - run: make install-dev
       - run: make test-cov
+      - name: Run HTTPie E2E tests
+        run: make test-e2e-httpie
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:

@@ -211,8 +211,8 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 ├── docs/                 # MODEL_CARD, ARCHITECTURE_DEPLOY, MONITORING, DEPLOYMENT, CONTRIBUTING, CODE_GUIDELINES
 ├── deploy/               # Helm/Kubernetes, Terraform/AWS ECS
 ├── notebooks/
-│   ├── eda.ipynb              # Etapa 1: EDA + baselines (Dummy, LogReg) + MLflow
-│   ├── modeling.ipynb         # Etapa 2: MLP PyTorch + ensembles + grid search + MLflow
+│   ├── eda.ipynb               # Etapa 1: EDA + baselines (Dummy, LogReg) + MLflow
+│   ├── modeling.ipynb          # Etapa 2: MLP PyTorch + ensembles + grid search + MLflow
 │   └── models-comparison.ipynb # Etapas 1+2: comparação cross-experimento, trade-off, ranking
 ├── src/
 │   ├── main.py                # create_app() + lifespan + middleware

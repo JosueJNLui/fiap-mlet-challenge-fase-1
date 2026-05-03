@@ -122,6 +122,8 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
         com LTV = R$ 500 e Custo_retencao = R$ 100
 ```
 
+> **Auditabilidade:** o cálculo é centralizado em [`src/application/business_metrics.py`](../src/application/business_metrics.py) e consumido pelos três notebooks (`eda`, `modeling`, `models-comparison`). Qualquer ajuste de LTV, custo de retenção ou da fórmula passa por esse módulo + teste em [`tests/application/test_business_metrics.py`](../tests/application/test_business_metrics.py).
+
 | Modelo | Lucro K-Fold | Lucro hold-out | FP × R$100 | FN × R$500 |
 |---|---|---|---|---|
 | DummyClassifier | — | **−R$ 187.000** | — | R$ 187.000 |
@@ -217,11 +219,11 @@ make run
 curl -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @payload.json
 ```
 
-Notebooks de referência:
+Notebooks de referência (cada um escreve em um experimento MLflow distinto, listados em `models-comparison.ipynb`):
 
-- [`notebooks/eda.ipynb`](../notebooks/eda.ipynb) — EDA, qualidade, distribuições, vieses por subgrupo.
-- [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) — baselines, MLP grid search, K-Fold, threshold otimizado.
-- [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb) — comparação visual e ranking por lucro.
+- [`notebooks/eda.ipynb`](../notebooks/eda.ipynb) — **Etapa 1**: EDA completa, baselines (DummyClassifier, Logistic Regression), métrica de negócio. Experimento: `Churn-Predict-Telco-Etapa1-EDA`.
+- [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) — **Etapa 2**: MLP em PyTorch (grid search 54 combinações, early stopping, K-Fold), ensembles (RandomForest, XGBoost), threshold otimizado, trade-off FP×FN. Experimento: `Churn-Predict-Telco-Etapa2-Modelagem`.
+- [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb) — **Etapas 1+2**: leitura cruzada dos dois experimentos, ranking por lucro, análise de estabilidade validação vs. teste.
 
 ---
 

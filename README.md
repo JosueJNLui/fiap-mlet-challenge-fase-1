@@ -42,6 +42,12 @@ flowchart LR
 - [`deploy/README.md`](deploy/README.md) — arquitetura prática de deploy com Helm/Kubernetes e Terraform/AWS ECS.
 - [`docs/MONITORING.md`](docs/MONITORING.md) — métricas técnicas/modelo/negócio, alertas, playbook.
 
+🧪 **Notebooks de pesquisa** (FIAP MLET Fase 1):
+- `notebooks/eda.ipynb` cobre a **Etapa 1** (EDA + baselines DummyClassifier/Logistic Regression) e escreve no experimento MLflow `Churn-Predict-Telco-Etapa1-EDA`.
+- `notebooks/modeling.ipynb` cobre a **Etapa 2** (MLP em PyTorch + ensembles, grid search, K-Fold, threshold otimizado, análise de trade-off FP×FN) e escreve em `Churn-Predict-Telco-Etapa2-Modelagem`.
+- `notebooks/models-comparison.ipynb` consulta os **dois** experimentos para a comparação cruzada.
+- Cálculos de lucro e custo de erro vivem em [`src/application/business_metrics.py`](src/application/business_metrics.py) — single source of truth compartilhada pelos três notebooks e pelo Model Card.
+
 ## Documentação interativa (Swagger / OpenAPI)
 
 Com a API rodando, abra um dos endpoints abaixo no browser:
@@ -202,13 +208,16 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 │   └── dataset/          # dataset original (Telco Customer Churn)
 ├── docs/                 # MODEL_CARD, ARCHITECTURE_DEPLOY, MONITORING
 ├── deploy/               # Helm/Kubernetes, Terraform/AWS ECS e README de deploy
-├── notebooks/            # EDA, treinamento, comparações
+├── notebooks/
+│   ├── eda.ipynb              # Etapa 1: EDA + baselines (Dummy, LogReg) + MLflow
+│   ├── modeling.ipynb         # Etapa 2: MLP PyTorch + ensembles + grid search + MLflow
+│   └── models-comparison.ipynb # Etapas 1+2: comparação cross-experimento, trade-off, ranking
 ├── src/
-│   ├── main.py           # create_app() + lifespan + middleware
-│   ├── config.py         # Settings (pydantic-settings)
-│   ├── api/              # schemas, routes, dependencies
-│   ├── application/      # preprocessing, ChurnPredictor
-│   └── infrastructure/   # mlflow_loader (DagsHub)
+│   ├── main.py                # create_app() + lifespan + middleware
+│   ├── config.py              # Settings (pydantic-settings)
+│   ├── api/                   # schemas, routes, dependencies
+│   ├── application/           # preprocessing, ChurnPredictor, business_metrics
+│   └── infrastructure/        # mlflow_loader (DagsHub)
 ├── tests/
 │   ├── test_health_endpoint.py
 │   ├── test_predict_endpoint.py

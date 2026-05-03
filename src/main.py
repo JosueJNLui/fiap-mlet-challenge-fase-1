@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import faulthandler
 import json
 import logging
+import signal
+import sys
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -10,6 +13,12 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import RequestResponseEndpoint
+
+# Diagnostic: enables `kill -USR1 <pid>` to dump all-thread tracebacks. Helps
+# debug startup hangs (e.g. blocking MLflow/urllib3 calls in the lifespan).
+faulthandler.enable()
+if hasattr(signal, "SIGUSR1"):
+    faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
 
 from .api.routes import api_router
 from .config import Settings, get_settings

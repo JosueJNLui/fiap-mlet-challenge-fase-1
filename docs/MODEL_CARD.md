@@ -6,15 +6,25 @@
 
 | Campo | Valor |
 |---|---|
-| **Nome** | `Churn_MLP_Final_Production` |
-| **Versão em produção** | `8` (MLflow Model Registry — DagsHub) |
-| **Algoritmo servido** | MLP (PyTorch) — empacotado com `StandardScaler` (sklearn) e threshold de negócio |
-| **Modelo de referência (recomendado)** | Logistic Regression (selecionado por parsimônia) |
+| **Nome** | `Churn_LogReg_Final_Production` |
+| **Versão em produção** | `1` (MLflow Model Registry — DagsHub), alias `@production` |
+| **Algoritmo servido** | Logistic Regression (sklearn) — empacotado com `StandardScaler` (sklearn) e threshold de negócio |
+| **Modelo alternativo (A/B-testável)** | MLP (PyTorch) — registrado como `Churn_MLP_Final_Production` v8; selecionável via `MODEL_FLAVOR=pytorch` no `.env` (ver §7.1) |
 | **Data de treino** | Q1/2026 |
 | **Owner / responsável** | Equipe FIAP MLET — Fase 1 |
 | **Tracking** | DagsHub MLflow — `https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow` |
 
-### Arquitetura do MLP servido
+### Hiperparâmetros da LogReg servida
+
+- **Solver:** `lbfgs`.
+- **Regularização:** L2 (default), `C=1.0`.
+- **Tratamento de desbalanceamento:** `class_weight='balanced'`.
+- **`max_iter`:** 1000.
+- **`random_state`:** 42.
+
+A escolha da LogReg como modelo servido decorre da equivalência estatística com o MLP no K-Fold pareado (Friedman + Nemenyi p≈0.997) somada à liderança em lucro de hold-out (R$ 81.200) e à vantagem operacional em **interpretabilidade, parsimônia e auditabilidade** (ver §5 e a célula de promoção em [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb)).
+
+### Arquitetura do MLP (alternativa A/B-testável)
 
 ```
 ChurnMLP(
@@ -133,15 +143,16 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
 
 ### Threshold de decisão (otimizado para negócio)
 
-- **Threshold servido:** `0.20303030303030303`.
-- Selecionado varrendo a curva PR e maximizando o **lucro líquido** em validação (não o F1).
-- Reflete a assimetria de custo: cada FN custa 5× mais que cada FP (LTV R$ 500 vs custo retenção R$ 100), então o threshold é deliberadamente baixo para favorecer recall.
+- **Threshold servido:** `0.2278` (LogReg, otimizado em validação cruzada 5-fold em `notebooks/eda.ipynb`).
+- **Threshold do MLP alternativo:** `0.20303030303030303` (otimizado no K-Fold 10-fold em `notebooks/modeling.ipynb`).
+- Cada threshold foi selecionado varrendo a curva PR do **seu próprio modelo** e maximizando o **lucro líquido** em validação (não o F1) — por isso são distintos.
+- Reflete a assimetria de custo: cada FN custa 5× mais que cada FP (LTV R$ 500 vs custo retenção R$ 100), então ambos são deliberadamente baixos para favorecer recall.
 
 ### Comparação estatística (Friedman + Nemenyi, 10-fold pareado)
 
 - **Friedman global:** p-value = `1.6e-04` → diferenças entre os 4+ modelos são significativas.
 - **Post-hoc Nemenyi:** Logistic Regression ≈ MLP (top-1), p = `0.997` → **estatisticamente equivalentes**.
-- **Decisão:** servir Logistic Regression (parsimônia, interpretabilidade), com MLP versionado como alternativa A/B-testável.
+- **Decisão:** servir Logistic Regression (parsimônia, interpretabilidade), com MLP versionado como alternativa A/B-testável (ver §7.1).
 
 ---
 
@@ -178,7 +189,14 @@ Insights de `notebooks/eda.ipynb` (análise bivariada com Mann-Whitney p<0.05 na
 | **Mudança de público-alvo** (ex.: passar a vender B2B) | Modelo prediz churn alto consistentemente | Não usar — o modelo não foi treinado para B2B |
 | **Falha no carregamento do scaler** | Predições com features não escaladas → scores degenerados | Lifespan fail-fast no startup; CI testa `load_predictor` (`tests/integration/`) |
 | **Indisponibilidade do MLflow / DagsHub** | API falha ao subir | `MODEL_VERSION` pinado em env permite rollback determinístico; cache local opcional |
+| **Necessidade de A/B test ou rollback do flavor** | Performance da LogReg degrada em segmento específico, ou queremos comparar com MLP | Trocar `MODEL_FLAVOR` / `MODEL_NAME` / `MODEL_VERSION` / `PREDICTION_THRESHOLD` no `.env` e reiniciar — sem deploy de código (ver §7.1) |
 | **Payload mal-formado** | Erro 422 (Pydantic) | Validação automática antes de qualquer inferência |
+
+### 7.1 Considerações operacionais — modelo servido vs alternativa
+
+A API mantém **dois caminhos de inferência** (sklearn LogReg e PyTorch MLP) selecionáveis via `settings.model_flavor`. A LogReg é o default por parsimônia + equivalência estatística com o MLP (Nemenyi p≈0.997, ver §5). O MLP fica versionado como alternativa A/B-testável, útil em três cenários: (i) comparação prospectiva de performance em produção, (ii) rollback rápido se a LogReg degradar em algum segmento, (iii) análises pontuais que se beneficiem da capacidade não-linear.
+
+**Receita de troca** (sem deploy de código): editar o `.env` para o bloco "Fallback A/B-testável: MLP (PyTorch)" descrito em [`.env.example`](../.env.example) e reiniciar a API. Os invariantes que **não** mudam: pipeline de pré-processamento, ordem das 28 features (`EXPECTED_FEATURE_ORDER`), e o caminho do scaler (`model_components/scaler.joblib`) — ambos os runs gravam o `StandardScaler` no mesmo path. O carregamento é dispatchado em [`src/infrastructure/mlflow_loader.py`](../src/infrastructure/mlflow_loader.py).
 
 ---
 

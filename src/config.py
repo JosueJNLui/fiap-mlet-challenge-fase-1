@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,10 +28,11 @@ class Settings(BaseSettings):
     )
     mlflow_tracking_username: str = "JosueJNLui"
     mlflow_tracking_password: SecretStr = SecretStr("")
-    model_name: str = "Churn_MLP_Final_Production"
-    model_version: str = "8"
+    model_name: str = "Churn_LogReg_Final_Production"
+    model_version: str = "2"
     scaler_artifact_path: str = "model_components/scaler.joblib"
-    prediction_threshold: float = 0.20303030303030303
+    prediction_threshold: float = 0.2278
+    model_flavor: Literal["sklearn", "pytorch"] = "sklearn"
     load_model_on_startup: bool = True
 
     # OpenAPI / Swagger UI. Set any of these to an empty string to disable the

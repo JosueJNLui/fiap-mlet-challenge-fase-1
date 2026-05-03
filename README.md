@@ -39,8 +39,10 @@ flowchart LR
 📚 **Documentação operacional:**
 - [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
 - [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md) — decisão real-time, SLA, scaling, DR.
-- [`deploy/README.md`](deploy/README.md) — arquitetura prática de deploy com Helm/Kubernetes e Terraform/AWS ECS.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — arquitetura prática de deploy com Helm/Kubernetes e Terraform/AWS ECS.
 - [`docs/MONITORING.md`](docs/MONITORING.md) — métricas técnicas/modelo/negócio, alertas, playbook.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — fluxo TBD, Conventional Commits, SemVer.
+- [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) — diretrizes de DDD, Clean Code e stack Python.
 
 🧪 **Notebooks de pesquisa** (FIAP MLET Fase 1):
 - `notebooks/eda.ipynb` cobre a **Etapa 1** (EDA + baselines DummyClassifier/Logistic Regression) e escreve no experimento MLflow `Churn-Predict-Telco-Etapa1-EDA`.
@@ -206,8 +208,8 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 ```
 ├── data/
 │   └── dataset/          # dataset original (Telco Customer Churn)
-├── docs/                 # MODEL_CARD, ARCHITECTURE_DEPLOY, MONITORING
-├── deploy/               # Helm/Kubernetes, Terraform/AWS ECS e README de deploy
+├── docs/                 # MODEL_CARD, ARCHITECTURE_DEPLOY, MONITORING, DEPLOYMENT, CONTRIBUTING, CODE_GUIDELINES
+├── deploy/               # Helm/Kubernetes, Terraform/AWS ECS
 ├── notebooks/
 │   ├── eda.ipynb              # Etapa 1: EDA + baselines (Dummy, LogReg) + MLflow
 │   ├── modeling.ipynb         # Etapa 2: MLP PyTorch + ensembles + grid search + MLflow
@@ -237,7 +239,7 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 - `uv` para deps, `ruff` lint+format, `ty` type-check, `pytest` testes
 - Docker (`python:3.13-slim` + `uv`)
 
-Diretrizes detalhadas em `src/INSTRUCTION.md` (DDD, Clean Code, Python).
+Diretrizes detalhadas em [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) (DDD, Clean Code, Python).
 
 ## Sobre o projeto
 

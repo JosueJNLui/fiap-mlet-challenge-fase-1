@@ -199,7 +199,7 @@ Para um deploy mínimo (2 pods em qualquer Kubernetes managed ou Cloud Run-like)
 
 ## 10. Documentos Relacionados
 
-- [`../deploy/README.md`](../deploy/README.md) — guia prático de deploy com diagramas para Helm/Kubernetes e Terraform/AWS ECS.
+- [`DEPLOYMENT.md`](DEPLOYMENT.md) — guia prático de deploy com diagramas para Helm/Kubernetes e Terraform/AWS ECS.
 - [`MODEL_CARD.md`](MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
 - [`MONITORING.md`](MONITORING.md) — métricas, SLOs operacionais, alertas, playbook.
 - [`../README.md`](../README.md) — instruções de setup e uso.

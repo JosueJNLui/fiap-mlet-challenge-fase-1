@@ -164,14 +164,28 @@ A imagem usa `mlflow-skinny` + `torch+cpu`, pesa ~1GB (vs ~3.5GB com defaults).
 ## Como testar
 
 ```bash
-make test          # 14 testes hermético (não exigem DagsHub)
-make test-cov      # testes + coverage.xml/htmlcov para Codecov
-make lint          # ruff
-make type-check    # ty
-make check         # tudo + format check
+make test             # suíte pytest hermética (não exige DagsHub)
+make test-e2e-httpie  # E2E isolado com HTTPie contra servidor localhost
+make test-cov         # testes + coverage.xml/htmlcov para Codecov
+make lint             # ruff
+make type-check       # ty
+make check            # tudo + format check
 ```
 
-Testes usam `dependency_overrides` do FastAPI para injetar um `FakePredictor`, então não precisam de credenciais nem rede.
+Testes unitários/API usam `dependency_overrides` do FastAPI para injetar um
+`FakePredictor`, então não precisam de credenciais nem rede.
+
+O alvo `make test-e2e-httpie` executa `tests/e2e/test_httpie_api.py`: ele sobe
+um `uvicorn` local com predictor determinístico e chama a API de fora do
+processo usando HTTPie. A suíte cobre `/health`, `/predict` com payload válido,
+border cases do payload Telco, erros comuns de parâmetros incorretos (`422`),
+JSON malformado, método não permitido (`405`) e rota inexistente (`404`).
+
+Para inspecionar status, headers e bodies de cada chamada:
+
+```bash
+E2E_HTTP_DEBUG=1 uv run pytest -s tests/e2e/test_httpie_api.py -q
+```
 
 ### Cobertura com Codecov
 

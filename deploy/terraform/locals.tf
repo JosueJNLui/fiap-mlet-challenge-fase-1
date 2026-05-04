@@ -13,6 +13,18 @@ locals {
 
   container_environment = [
     {
+      name  = "MLFLOW_TRACKING_URI"
+      value = var.mlflow_tracking_uri
+    },
+    {
+      name  = "MLFLOW_TRACKING_USERNAME"
+      value = var.mlflow_tracking_username
+    },
+    {
+      name  = "MODEL_FLAVOR"
+      value = var.model_flavor
+    },
+    {
       name  = "MODEL_NAME"
       value = var.model_name
     },
@@ -21,12 +33,35 @@ locals {
       value = var.model_version
     },
     {
+      name  = "SCALER_ARTIFACT_PATH"
+      value = var.scaler_artifact_path
+    },
+    {
       name  = "PREDICTION_THRESHOLD"
       value = var.prediction_threshold
     },
     {
       name  = "LOAD_MODEL_ON_STARTUP"
       value = tostring(var.load_model_on_startup)
+    },
+    {
+      name  = "DOCS_URL"
+      value = var.docs_url
+    },
+    {
+      name  = "REDOC_URL"
+      value = var.redoc_url
+    },
+    {
+      name  = "OPENAPI_URL"
+      value = var.openapi_url
+    }
+  ]
+
+  container_secrets = var.mlflow_tracking_password_secret_arn == "" ? [] : [
+    {
+      name      = "MLFLOW_TRACKING_PASSWORD"
+      valueFrom = var.mlflow_tracking_password_secret_arn
     }
   ]
 }

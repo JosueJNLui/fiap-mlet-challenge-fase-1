@@ -94,21 +94,21 @@ def test_predictor_from_pipeline_uses_pipeline_predict_proba(
     fitted_pipeline: Pipeline, raw_payload: dict[str, Any]
 ) -> None:
     predictor = ChurnPredictor.from_pipeline(
-        pipeline=fitted_pipeline, threshold=0.2278, version="test-pipeline"
+        pipeline=fitted_pipeline, threshold=0.2080, version="test-pipeline"
     )
     result = predictor.predict(raw_payload)
     assert 0.0 <= result.probability <= 1.0
-    assert result.threshold == 0.2278
+    assert result.threshold == 0.2080
     expected = float(fitted_pipeline.predict_proba(pd.DataFrame([raw_payload]))[0, 1])
     assert result.probability == pytest.approx(expected)
-    assert result.label is (result.probability >= 0.2278)
+    assert result.label is (result.probability >= 0.2080)
 
 
 def test_predictor_from_pipeline_does_not_set_components(
     fitted_pipeline: Pipeline,
 ) -> None:
     predictor = ChurnPredictor.from_pipeline(
-        pipeline=fitted_pipeline, threshold=0.2278, version="v1"
+        pipeline=fitted_pipeline, threshold=0.2080, version="v1"
     )
     assert predictor.model is None
     assert predictor.scaler is None

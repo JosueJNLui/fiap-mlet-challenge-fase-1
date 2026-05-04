@@ -37,11 +37,11 @@ DEFAULT_LOGREG_PARAMS: dict[str, Any] = {
 
 
 def build_logreg_pipeline(**logreg_overrides: Any) -> Pipeline:
-    """Build the production-grade LogReg Pipeline.
+    """Constrói a Pipeline LogReg de produção.
 
-    Parameters mirror the baseline LogReg trained in ``notebooks/eda.ipynb``
+    Os parâmetros espelham a LogReg baseline treinada em ``notebooks/eda.ipynb``
     (``class_weight='balanced'``, ``solver='lbfgs'``, ``max_iter=1000``).
-    Any keyword override here is forwarded to :class:`LogisticRegression`.
+    Qualquer override por keyword é encaminhado para :class:`LogisticRegression`.
     """
     params = {**DEFAULT_LOGREG_PARAMS, **logreg_overrides}
     return Pipeline(

@@ -7,7 +7,7 @@ from src.main import create_app
 
 
 class E2EPredictor:
-    """Deterministic predictor used by the E2E HTTP server."""
+    """Predictor determinístico usado pelo servidor HTTP de E2E."""
 
     threshold = 0.20303030303030303
     version = "e2e-test-version"

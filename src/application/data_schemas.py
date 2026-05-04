@@ -57,9 +57,9 @@ RAW_TELCO_SCHEMA: DataFrameSchema = DataFrameSchema(
             ),
         ),
         "MonthlyCharges": Column(float, Check.greater_than_or_equal_to(0)),
-        # TotalCharges arrives as object in the raw CSV (string with " " for
-        # tenure==0 rows). Validation accepts the raw form; coercion to float
-        # is responsibility of preprocess_one downstream.
+        # TotalCharges vem como object no CSV bruto (string com " " para
+        # linhas com tenure==0). A validação aceita a forma bruta; a coerção
+        # para float fica a cargo do preprocess_one mais à frente.
         "TotalCharges": Column(object),
         "Churn": Column(str, Check.isin(_YES_NO)),
     },
@@ -77,15 +77,15 @@ for _col in EXPECTED_FEATURE_ORDER:
     elif _col == "MonthlyCharges":
         _processed_columns[_col] = Column(float, Check.greater_than_or_equal_to(0.0))
     elif _col in {"TotalCharges", "avg_charges_per_month", "charge_vs_expected"}:
-        # log1p-scale or derived-from-log1p; bounded by training-time range.
+        # Em escala log1p ou derivada de log1p; limitado pelo range visto no treino.
         _processed_columns[_col] = Column(float)
     elif _col == "num_services":
         _processed_columns[_col] = Column(float, Check.in_range(0.0, 9.0))
     elif _col == "SeniorCitizen":
         _processed_columns[_col] = Column(float, _BINARY_FLOAT)
     else:
-        # Binary encoded originals (Partner, Dependents, etc.) and one-hot
-        # dummies (gender_Male, Contract_*, PaymentMethod_*, tenure_bucket_*).
+        # Originais binários codificados (Partner, Dependents, etc.) e dummies
+        # one-hot (gender_Male, Contract_*, PaymentMethod_*, tenure_bucket_*).
         _processed_columns[_col] = Column(float, _BINARY_FLOAT)
 
 PROCESSED_FEATURES_SCHEMA: DataFrameSchema = DataFrameSchema(

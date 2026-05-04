@@ -1,4 +1,4 @@
-"""Unit tests for ``load_predictor`` — wiring only, MLflow is fully mocked.
+"""Testes unitários de ``load_predictor`` — só wiring; o MLflow é totalmente mockado.
 
 Os testes de integração reais ficam em
 ``tests/integration/test_mlflow_loader.py`` e exigem credenciais DagsHub.
@@ -40,7 +40,7 @@ def _make_settings(flavor: Literal["sklearn", "pytorch"]) -> Settings:
 
 @pytest.fixture
 def patched_mlflow():
-    """Patch every MLflow boundary so ``load_predictor`` runs offline."""
+    """Mocka todas as fronteiras do MLflow para rodar ``load_predictor`` offline."""
     with (
         patch("src.infrastructure.mlflow_loader.MlflowClient") as client_cls,
         patch("src.infrastructure.mlflow_loader.mlflow") as mlflow_mod,
@@ -74,7 +74,7 @@ def test_load_predictor_sklearn_flavor_wraps_pipeline(patched_mlflow) -> None:
     predictor = load_predictor(settings)
 
     assert isinstance(predictor, ChurnPredictor)
-    # from_pipeline mode: components are intentionally None.
+    # Modo from_pipeline: os componentes são None de propósito.
     assert predictor.model is None
     assert predictor.scaler is None
     assert predictor.inference_fn is None
@@ -84,7 +84,7 @@ def test_load_predictor_sklearn_flavor_wraps_pipeline(patched_mlflow) -> None:
     patched_mlflow["mlflow"].sklearn.load_model.assert_called_once_with(
         f"models:/{settings.model_name}/{settings.model_version}"
     )
-    # No separate scaler download for sklearn path.
+    # No caminho sklearn não há download separado de scaler.
     patched_mlflow["mlflow"].artifacts.download_artifacts.assert_not_called()
     patched_mlflow["joblib"].load.assert_not_called()
 
@@ -110,8 +110,8 @@ def test_load_predictor_pytorch_flavor_calls_eval_and_downloads_scaler(
 
 
 def test_load_predictor_unsupported_flavor_raises() -> None:
-    # Pydantic blocks unknown literals at validation; we simulate the runtime
-    # branch via direct assignment to make sure the sentinel raises.
+    # O Pydantic bloqueia literais desconhecidos na validação; simulamos o
+    # branch de runtime via atribuição direta para garantir que o sentinel dispara.
     settings = _make_settings("sklearn")
     object.__setattr__(settings, "model_flavor", "tensorflow")
 

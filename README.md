@@ -20,7 +20,7 @@ Fluxo de uma predição:
 4. `ChurnPredictor.predict()`:
    - **sklearn (default):** `pipeline.predict_proba(payload)` — a Pipeline interna executa FeatureEngineer → StandardScaler → LogReg; nenhum preprocessing manual no caminho de inferência.
    - **pytorch (alternativo):** `preprocess_one` → `scaler.transform` → tensor PyTorch + sigmoid.
-   - Em ambos: comparação com threshold de negócio (default `0.2278` para LogReg; `0.20303` para o MLP, otimizados na mesma curva de lucro).
+   - Em ambos: comparação com threshold de negócio (default `0.2080` para LogReg; `0.20303` para o MLP, otimizados na mesma curva de lucro).
 5. Resposta inclui `churn_probability`, `prediction`, `threshold`, `model_version`, `request_id`.
 
 ```mermaid
@@ -108,8 +108,8 @@ Resposta (200):
 {
   "churn_probability": 0.42,
   "prediction": true,
-  "threshold": 0.2278,
-  "model_version": "2",
+  "threshold": 0.2080,
+  "model_version": "3",
   "request_id": "9f4a..."
 }
 ```
@@ -149,8 +149,8 @@ Variáveis disponíveis:
 | `MLFLOW_TRACKING_URI` | URI do MLflow no DagsHub | `https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow` |
 | `MODEL_FLAVOR` | `sklearn` ou `pytorch` — define o caminho de inferência | `sklearn` |
 | `MODEL_NAME` | Nome do modelo registrado | `Churn_LogReg_Final_Production` |
-| `MODEL_VERSION` | Versão pinada (recomendado) | `2` |
-| `PREDICTION_THRESHOLD` | Limiar de decisão | `0.2278` |
+| `MODEL_VERSION` | Versão pinada (recomendado) | `3` |
+| `PREDICTION_THRESHOLD` | Limiar de decisão | `0.2080` |
 | `LOAD_MODEL_ON_STARTUP` | Se falso, pula carregamento (debug/dev) | `true` |
 
 Sem credenciais válidas o startup falha por design (fail-fast com 401 do DagsHub).

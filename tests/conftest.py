@@ -12,10 +12,10 @@ from src.main import app
 
 
 class FakePredictor:
-    """Stand-in for ChurnPredictor used in API tests.
+    """Substituto de ChurnPredictor usado nos testes da API.
 
-    Returns a fixed probability so we can assert response shape and
-    middleware behavior without touching MLflow.
+    Retorna uma probabilidade fixa para que possamos validar o formato da
+    resposta e o comportamento do middleware sem acessar o MLflow.
     """
 
     def __init__(
@@ -47,7 +47,7 @@ def client(fake_predictor: FakePredictor) -> Iterator[TestClient]:
 
 @pytest.fixture
 def sample_payload() -> dict[str, Any]:
-    """Realistic Telco payload for one customer."""
+    """Payload Telco realista para um único cliente."""
     return {
         "gender": "Female",
         "SeniorCitizen": 0,

@@ -88,7 +88,7 @@ def test_feature_engineer_handles_batch_of_two(raw_payload: dict[str, Any]) -> N
     out = FeatureEngineer().transform(batch)
     assert out.shape == (2, 28)
     assert list(out.columns) == EXPECTED_FEATURE_ORDER
-    # Each row should equal preprocess_one applied individually
+    # Cada linha deve ser igual a preprocess_one aplicado individualmente
     expected_row_0 = preprocess_one(raw_payload).iloc[0]
     expected_row_1 = preprocess_one(_alt_payload()).iloc[0]
     pd.testing.assert_series_equal(

@@ -22,7 +22,7 @@
 - **`max_iter`:** 1000.
 - **`random_state`:** 42.
 
-A escolha da LogReg como modelo servido decorre da equivalência estatística com o MLP no K-Fold pareado (Friedman + Nemenyi p≈0.997) somada à liderança em lucro de hold-out (R$ 81.200) e à vantagem operacional em **interpretabilidade, parsimônia e auditabilidade** (ver §5 e a célula de promoção em [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb)).
+A escolha da LogReg como modelo servido decorre da equivalência estatística com o MLP no K-Fold pareado (Friedman + Nemenyi p≈0.997) somada à liderança em lucro de hold-out (R$ 81.200 vs R$ 76.300 do MLP) e à vantagem operacional em **interpretabilidade, parsimônia e auditabilidade** (ver §5 e a célula de promoção em [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb)).
 
 ### Arquitetura do MLP (alternativa A/B-testável)
 
@@ -127,10 +127,12 @@ Os schemas não são chamados no hot-path da API (overhead desnecessário em pay
 
 | Modelo | ROC-AUC | PR-AUC | F1 (churn) | Recall | Precision | Accuracy |
 |---|---|---|---|---|---|---|
-| DummyClassifier (maj.) | 0.500 | — | 0.000 | 0.00 | 0.00 | 0.73 |
-| **Logistic Regression** | **0.849** | **0.670** | **0.560** | **0.96** | **0.40** | 0.74 |
-| Random Forest (100, depth=10) | 0.841 | 0.645 | 0.551 | 0.95 | 0.40 | 0.74 |
-| MLP (top-1 grid search) | 0.847 | 0.673 | 0.541 | 0.96 | 0.39 | 0.73 |
+| DummyClassifier (maj.) | 0.500 | 0.633 | 0.000 | 0.00 | 0.00 | 0.73 |
+| **Logistic Regression** | **0.849** | **0.672** | **0.560** | **0.96** | **0.40** | 0.60 |
+| Random Forest (100, depth=10) | 0.840 | 0.645 | 0.551 | 0.95 | 0.39 | 0.59 |
+| MLP (top-1 grid search) | 0.849 | — | 0.550 | 0.95 | 0.39 | 0.59 |
+
+> **Nota sobre Accuracy:** os valores baixos (0.59–0.60) refletem o threshold otimizado por **lucro líquido** (~0.21), não por F1. Como cada FN custa 5× mais que cada FP, o ponto de operação favorece recall e sacrifica accuracy. O Dummy mantém accuracy alta (0.73) porque sempre prediz a classe majoritária. PR-AUC do MLP não é publicado pela célula consolidadora de `models-comparison.ipynb`; ver `modeling.ipynb` runs MLflow individuais para o valor por fold.
 
 ### Métrica de negócio: Lucro Líquido (BRL)
 
@@ -147,15 +149,16 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
 |---|---|---|---|---|
 | DummyClassifier | — | **−R$ 187.000** | — | R$ 187.000 |
 | **Logistic Regression** | R$ 33.120 | **R$ 81.200** | R$ 54.900 | R$ 7.500 |
-| Random Forest | R$ 32.340 | R$ 77.800 | — | — |
-| MLP (top-1) | R$ 33.120 | R$ 79.100 | R$ 55.200 | R$ 8.500 |
+| Random Forest | R$ 32.340 | R$ 77.800 | R$ 56.500 | R$ 8.500 |
+| MLP (top-1) | R$ 32.980 | R$ 76.300 | R$ 56.200 | R$ 9.500 |
 
 ### Threshold de decisão (otimizado para negócio)
 
-- **Threshold servido:** `0.2278` (LogReg, otimizado em validação cruzada 5-fold em `notebooks/eda.ipynb`).
+- **Threshold servido:** `0.2080` (LogReg, otimizado pela curva de lucro na célula `Pipeline de produção` de `notebooks/modeling.ipynb`; persistido como tag `threshold_servido` na versão `@production` do modelo MLflow).
 - **Threshold do MLP alternativo:** `0.20303030303030303` (otimizado no K-Fold 10-fold em `notebooks/modeling.ipynb`).
 - Cada threshold foi selecionado varrendo a curva PR do **seu próprio modelo** e maximizando o **lucro líquido** em validação (não o F1) — por isso são distintos.
 - Reflete a assimetria de custo: cada FN custa 5× mais que cada FP (LTV R$ 500 vs custo retenção R$ 100), então ambos são deliberadamente baixos para favorecer recall.
+- O baseline da Etapa 1 (`notebooks/eda.ipynb`) usou um threshold inicial `0.2278` (CV 5-fold) que rendeu lucro hold-out de R$ 80.200; a otimização final por curva de lucro da Etapa 3 trouxe o valor para `0.2080` (R$ 81.200) — é este último que vai para produção.
 
 ### Comparação estatística (Friedman + Nemenyi, 10-fold pareado)
 

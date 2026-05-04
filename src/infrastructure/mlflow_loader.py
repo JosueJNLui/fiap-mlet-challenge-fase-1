@@ -31,13 +31,13 @@ from ..config import Settings
 
 
 def load_predictor(settings: Settings) -> ChurnPredictor:
-    """Loads the registered model from the MLflow tracking server.
+    """Carrega o modelo registrado no MLflow tracking server.
 
-    Sets MLFLOW_TRACKING_USERNAME / PASSWORD env vars so the underlying client
-    uses Basic Auth (DagsHub's auth model). The model URI is resolved as
-    ``models:/<name>/<version>``; for the PyTorch path, the scaler is
-    downloaded from ``model_version.run_id`` and must come from the same run
-    where the model was logged.
+    Define as env vars MLFLOW_TRACKING_USERNAME / PASSWORD para que o cliente
+    subjacente use Basic Auth (modelo de autenticação do DagsHub). A URI do
+    modelo é resolvida como ``models:/<name>/<version>``; no caminho PyTorch,
+    o scaler é baixado a partir do ``model_version.run_id`` e precisa vir
+    do mesmo run em que o modelo foi logado.
     """
     os.environ["MLFLOW_TRACKING_USERNAME"] = settings.mlflow_tracking_username
     os.environ["MLFLOW_TRACKING_PASSWORD"] = (

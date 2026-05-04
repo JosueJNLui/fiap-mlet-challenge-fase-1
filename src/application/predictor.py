@@ -29,12 +29,12 @@ InferenceFn = Callable[[Any, np.ndarray], float]
 
 
 def sklearn_inference(model: Any, scaled: np.ndarray) -> float:
-    """LogReg path: predict_proba já retorna probabilidade calibrada."""
+    """Caminho LogReg: ``predict_proba`` já devolve probabilidade calibrada."""
     return float(model.predict_proba(scaled)[0, 1])
 
 
 def pytorch_inference(model: Any, scaled: np.ndarray) -> float:
-    """MLP path: logits → sigmoid. Mantido como fallback A/B-testável."""
+    """Caminho MLP: logits → sigmoid. Mantido como fallback A/B-testável."""
     import torch
 
     tensor = torch.tensor(scaled, dtype=torch.float32)
@@ -44,20 +44,20 @@ def pytorch_inference(model: Any, scaled: np.ndarray) -> float:
 
 
 class ChurnPredictor:
-    """Bundles the trained model with its threshold and the inference path.
+    """Empacota o modelo treinado com seu threshold e o caminho de inferência.
 
-    Two flavors share this class:
+    Dois flavors compartilham esta classe:
 
-    * **Pipeline mode** (sklearn flavor in production) — built via
-      :meth:`from_pipeline`. Wraps a fitted ``sklearn.Pipeline`` that owns
-      feature engineering, scaling and classification end-to-end. The raw
-      payload goes straight into ``pipeline.predict_proba``.
-    * **Components mode** (PyTorch MLP fallback) — uses the legacy
-      constructor ``__init__(model, scaler, ...)``. The MLP is a
-      ``torch.nn.Module`` that cannot live inside a sklearn Pipeline, so the
-      preprocessing + scaler steps stay external.
+    * **Modo Pipeline** (flavor sklearn em produção) — construído via
+      :meth:`from_pipeline`. Encapsula uma ``sklearn.Pipeline`` já ajustada que
+      cuida de feature engineering, scaling e classificação ponta-a-ponta. O
+      payload bruto vai direto para ``pipeline.predict_proba``.
+    * **Modo componentes** (fallback MLP em PyTorch) — usa o construtor antigo
+      ``__init__(model, scaler, ...)``. O MLP é um ``torch.nn.Module`` que não
+      cabe dentro de uma sklearn Pipeline, então pré-processamento e scaler
+      permanecem externos.
 
-    Both modes expose the same ``predict(payload)`` contract used by the API.
+    Ambos os modos expõem o mesmo contrato ``predict(payload)`` usado pela API.
     """
 
     def __init__(
@@ -79,11 +79,11 @@ class ChurnPredictor:
     def from_pipeline(
         cls, pipeline: _Pipeline, threshold: float, version: str
     ) -> ChurnPredictor:
-        """Build a predictor backed by a sklearn.Pipeline (production path).
+        """Constrói um predictor apoiado em uma sklearn.Pipeline (caminho de produção).
 
-        The Pipeline is the single artifact registered in MLflow as
-        ``Churn_LogReg_Final_Production``; it embeds FeatureEngineer +
-        StandardScaler + LogisticRegression and accepts a raw 1-row DataFrame.
+        A Pipeline é o artefato único registrado no MLflow como
+        ``Churn_LogReg_Final_Production``; embute FeatureEngineer +
+        StandardScaler + LogisticRegression e aceita um DataFrame bruto de 1 linha.
         """
         instance = cls.__new__(cls)
         instance.model = None

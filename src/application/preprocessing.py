@@ -1,11 +1,11 @@
-"""Feature engineering replicating ``notebooks/modeling.ipynb`` exactly.
+"""Feature engineering replicando ``notebooks/modeling.ipynb`` exatamente.
 
-The MLP serialized in MLflow consumes already-encoded numeric features, so
-the API has to recreate the same pipeline before scaling and inference.
+O MLP serializado no MLflow consome features numéricas já codificadas, então
+a API precisa recriar o mesmo pipeline antes do scaling e da inferência.
 
-Single source of truth: keep this module in lockstep with the preprocessing
-cells of the notebook. Any change here that diverges from training is a
-silent correctness bug.
+Fonte única da verdade: manter este módulo sincronizado com as células de
+pré-processamento do notebook. Qualquer mudança aqui que divirja do treino é
+um bug silencioso de correção.
 """
 
 from __future__ import annotations
@@ -123,11 +123,11 @@ def _apply_one_hot(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def preprocess_one(payload: dict[str, Any]) -> pd.DataFrame:
-    """Turns a single raw Telco payload into a 1x28 DataFrame.
+    """Converte um payload Telco bruto em um DataFrame 1x28.
 
-    Output columns are aligned to ``EXPECTED_FEATURE_ORDER`` (training-time
-    feature order). One-hot encoding is applied manually because pandas'
-    get_dummies on a single row produces incomplete dummy sets.
+    As colunas de saída seguem ``EXPECTED_FEATURE_ORDER`` (a mesma ordem usada
+    no treino). O one-hot encoding é aplicado manualmente porque
+    ``pd.get_dummies`` em uma única linha produz conjuntos incompletos.
     """
     df = pd.DataFrame([payload])
     if "customerID" in df.columns:
@@ -146,8 +146,8 @@ def preprocess_one(payload: dict[str, Any]) -> pd.DataFrame:
     df["TotalCharges"] = np.log1p(df["TotalCharges"])
 
     df = create_features(df)
-    # Convert the categorical bucket to its string label so the one-hot helper
-    # can compare it directly.
+    # Converte o bucket categórico para string para que o helper de one-hot
+    # possa comparar os rótulos diretamente.
     df["tenure_bucket"] = df["tenure_bucket"].astype(str)
     df = _apply_one_hot(df)
 

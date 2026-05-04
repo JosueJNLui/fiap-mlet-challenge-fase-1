@@ -14,8 +14,9 @@ from datetime import UTC, datetime
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import RequestResponseEndpoint
 
-# Diagnostic: enables `kill -USR1 <pid>` to dump all-thread tracebacks. Helps
-# debug startup hangs (e.g. blocking MLflow/urllib3 calls in the lifespan).
+# Diagnóstico: habilita `kill -USR1 <pid>` para despejar tracebacks de todas
+# as threads. Útil para debugar travas no startup (ex.: chamadas bloqueantes
+# de MLflow/urllib3 dentro do lifespan).
 faulthandler.enable()
 if hasattr(signal, "SIGUSR1"):  # pragma: no cover - POSIX-only branch (no SIGUSR1 on Windows)
     faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
@@ -138,7 +139,7 @@ def _build_lifespan(settings: Settings, *, load_model: bool):
                     "model.load.failed",
                     extra={"extra": {"error": str(exc), "type": type(exc).__name__}},
                 )
-                # Fail fast: process exits, orchestrator restarts.
+                # Fail fast: o processo encerra e o orquestrador reinicia.
                 raise
         yield
 

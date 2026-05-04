@@ -26,16 +26,16 @@ from .preprocessing import (
 
 
 class FeatureEngineer(BaseEstimator, TransformerMixin):
-    """Stateless feature engineering for the Telco Customer Churn dataset.
+    """Feature engineering stateless para o dataset Telco Customer Churn.
 
-    Produces the 28-column float matrix the StandardScaler expects, in the
-    exact order defined by ``EXPECTED_FEATURE_ORDER``. Stateless because all
-    encoders are deterministic and based on a fixed vocabulary; ``fit`` is a
-    no-op kept for sklearn compatibility.
+    Produz a matriz float de 28 colunas que o StandardScaler espera, na ordem
+    exata definida por ``EXPECTED_FEATURE_ORDER``. Stateless porque todos os
+    encoders são determinísticos e baseados num vocabulário fixo; ``fit`` é
+    no-op, mantido apenas por compatibilidade com sklearn.
     """
 
     def fit(self, X: pd.DataFrame, y: Any = None) -> FeatureEngineer:
-        del X, y  # stateless; accepted only for sklearn compatibility
+        del X, y  # stateless; aceitos apenas por compatibilidade com sklearn
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
@@ -62,5 +62,5 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         return df.reindex(columns=EXPECTED_FEATURE_ORDER, fill_value=0).astype(float)
 
     def get_feature_names_out(self, input_features: Any = None) -> np.ndarray:
-        del input_features  # output names are fixed by EXPECTED_FEATURE_ORDER
+        del input_features  # nomes de saída são fixados por EXPECTED_FEATURE_ORDER
         return np.array(EXPECTED_FEATURE_ORDER)

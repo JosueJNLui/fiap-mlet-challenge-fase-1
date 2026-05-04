@@ -178,8 +178,8 @@ Toda configuração é externalizada (12-factor). Defaults em `src/config.py`. V
 | `MLFLOW_TRACKING_URI` | Endpoint do MLflow (DagsHub por padrão) |
 | `MLFLOW_TRACKING_USERNAME` / `_PASSWORD` | Credenciais (SecretStr, nunca logadas) |
 | `MODEL_FLAVOR` | `sklearn` (LogReg, default) ou `pytorch` (MLP, alternativa A/B-testável) |
-| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico — **sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `2`) |
-| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2278` para LogReg; `0.20303030303030303` para o MLP A/B) |
+| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico — **sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `3`) |
+| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2080` para LogReg; `0.20303030303030303` para o MLP A/B) |
 | `LOAD_MODEL_ON_STARTUP` | `false` apenas para dev/debug |
 | `DOCS_URL` | Vazio em prod para desabilitar Swagger sem alterar código |
 

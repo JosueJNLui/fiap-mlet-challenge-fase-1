@@ -261,6 +261,36 @@ Diretrizes detalhadas em [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) (D
 | **3.** Refatoração modular, pipeline reprodutível (`sklearn.Pipeline` + `FeatureEngineer` custom), testes (pytest unitários + pandera schemas + smoke E2E), API FastAPI, logging + middleware, Makefile/ruff | Repositório refatorado + API funcional + testes | [`src/application/transformers.py`](src/application/transformers.py), [`src/application/pipeline.py`](src/application/pipeline.py), [`src/application/data_schemas.py`](src/application/data_schemas.py), [`tests/`](tests/), [`Makefile`](Makefile), [`pyproject.toml`](pyproject.toml) |
 | **4.** Model Card, arquitetura de deploy, plano de monitoramento, README final | Documentação completa | [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md), [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md), [`docs/MONITORING.md`](docs/MONITORING.md), [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), este README |
 
+## Conclusão
+
+### Síntese dos relatos dos notebooks
+
+**Etapa 1 — EDA + baselines** ([`notebooks/eda.ipynb`](notebooks/eda.ipynb)).
+Dataset com 7.043 registros e 21 colunas, sem missings nominais (apenas 11 strings vazias em `TotalCharges` para clientes com `tenure=0`). Target desbalanceado em 73/27, com `tenure`, `MonthlyCharges` e `TotalCharges` confirmados como drivers de churn via Mann-Whitney U + Bonferroni. Multicolinearidade esperada entre `tenure` e `TotalCharges` (~0.83) tratada com `np.log1p`. A métrica de negócio adotada foi **lucro líquido** (LTV=R$500, custo de retenção=R$100), substituindo F1 pela assimetria de custos (FN custa 5× FP). Os baselines (`DummyClassifier` e `LogisticRegression(class_weight='balanced')`) já mostraram que a LogReg supera o piso por larga margem.
+
+**Etapa 2 — MLP + ensembles** ([`notebooks/modeling.ipynb`](notebooks/modeling.ipynb)).
+Comparação rigorosa entre LogReg, Random Forest, XGBoost e MLP (PyTorch) com K-Fold pareado, grid search e teste de Friedman+Nemenyi. A arquitetura do MLP foi mantida deliberadamente parsimoniosa: **uma única camada oculta** (`28 → hidden → BatchNorm → Dropout → 1`), `BCEWithLogitsLoss` com `pos_weight≈2.77` (equivalente ao `class_weight='balanced'`) e early stopping. Variantes com 2 camadas chegaram a ser exploradas e não trouxeram ganho mensurável — apenas mais parâmetros, mais tuning e maior risco de overfitting em ~5.6k amostras.
+
+**Comparação cross-experimento** ([`notebooks/models-comparison.ipynb`](notebooks/models-comparison.ipynb)).
+No hold-out, a Logistic Regression liderou simultaneamente as quatro frentes (recall 0.960, precisão 0.395, menor custo de FN R$7.500 e menor custo de FP R$54.900), atingindo lucro de **R$81.200**. O MLP campeão do grid ficou em **R$79.100** (Δ R$2.100), com Random Forest e XGBoost atrás em todas as métricas relevantes. Em CV, o MLP é estatisticamente **equivalente** à LogReg (Friedman+Nemenyi, p≈0.997), reforçando que o ganho não-linear esperado simplesmente não existe nesse volume e perfil de features.
+
+### Escolha do modelo e a dificuldade de "vencer" a Logistic Regression
+
+A decisão final foi promover a **Logistic Regression** como modelo de produção, sustentada por três pilares: (1) **financeiro** — maior lucro líquido absoluto; (2) **eficiência** — melhor controle de FP, evitando desperdício de verba de retenção; (3) **auditabilidade** — interpretabilidade direta dos coeficientes para as áreas de negócio. O MLP fica versionado como alternativa A/B-testável (`MODEL_FLAVOR=pytorch`) por ser estatisticamente equivalente — útil se o perfil dos dados mudar e justificar reavaliação, mas sem custo operacional adicional hoje.
+
+A "dificuldade" em vencer a LogReg não é acidente: o sinal de churn no Telco é predominantemente **linear nas features pós-engenharia** (`Contract`, `tenure`, `InternetService`, `PaymentMethod` dominam), o `class_weight='balanced'` já calibra o desbalanceamento sem reamostragem, e a otimização de threshold por curva de lucro (não 0.5) extrai o ótimo operacional do modelo linear. Nesse regime, capacidade adicional vira variância, não viés removido — o que explica o resultado de Friedman e a opção pelo MLP **mais simples possível** (8 dims, 1 camada oculta) na fase de comparação.
+
+### Conclusão geral do desafio
+
+O desafio cobriu o ciclo end-to-end de um projeto de ML: formulação do problema com métrica de negócio explícita, EDA com validação estatística, baselines honestos, modelo "avançado" com PyTorch, refatoração para `sklearn.Pipeline` com transformador custom (`FeatureEngineer`), validação de schemas com pandera, API FastAPI com logging estruturado e middleware de latência, testes hermeticos + E2E com HTTPie, containerização e documentação operacional (Model Card, arquitetura de deploy, plano de monitoramento). O mapeamento Etapa→artefato fica explícito na tabela acima.
+
+**Aprendizados com a stack:**
+- **MLflow + DagsHub** funciona bem como Model Registry remoto sem infra própria, mas exige disciplina de pinagem (`MODEL_VERSION` fixo, alias `@production`) para evitar drift silencioso entre treino e serving.
+- **`sklearn.Pipeline` empacotada** (FeatureEngineer → StandardScaler → LogReg) elimina toda a classe de bug de "preprocessing diferente em treino e inferência" — o caminho de servir vira `pipeline.predict_proba(payload)`, sem etapas manuais.
+- **PyTorch para tabular** é viável e didático, mas em datasets pequenos com sinal linear o ROI sobre `sklearn` é baixo. A lição é validar empiricamente, não assumir que "rede neural ≥ baseline".
+- **`uv` + `ruff` + `ty` + `pytest`** entregam um loop de desenvolvimento rápido: instalação reprodutível em segundos, lint+format unificados e type-check moderno sem o overhead histórico do mypy. Combinado com `Makefile` curto e Dockerfile com `mlflow-skinny` + `torch+cpu`, a imagem final cabe em ~1GB.
+- **Lucro líquido como métrica primária** foi o que mais mudou as decisões — modelos com AUC competitivo (Random Forest, XGBoost) ficaram para trás em lucro, evidenciando que AUC e valor de negócio **não são intercambiáveis** e que a curva de threshold tem que ser otimizada explicitamente, não herdada do default 0.5.
+
 ## Sobre o projeto
 
 | Item | Detalhe |

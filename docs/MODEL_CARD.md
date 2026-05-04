@@ -74,7 +74,7 @@ ChurnMLP(
 
 - 11 valores inválidos detectados em `TotalCharges` (strings em branco para `tenure=0`).
 - Tratamento no EDA (`notebooks/eda.ipynb`): imputação `MonthlyCharges × tenure` (mantém 7.043 linhas).
-- Tratamento na modelagem (`notebooks/modeling.ipynb`): `FeatureEngineer.transform` aplica `log1p(TotalCharges)` NaN-safe e a Pipeline absorve os 11 NaN sem cair no `dropna`, então o split estratificado opera sobre as 7.043 linhas. Há também uma célula descritiva paralela em `modeling.ipynb` que mostra o efeito de `dropna(TotalCharges)` (resultando 7.032 linhas com distribuição {0: 5.163, 1: 1.869}); ela é puramente exploratória e não alimenta o pipeline de produção.
+- Tratamento na modelagem (`notebooks/modeling.ipynb`): `FeatureEngineer.transform` faz a mesma imputação `MonthlyCharges × tenure` e em seguida aplica `log1p(TotalCharges)`, então o split estratificado opera sobre as 7.043 linhas (sem `dropna`). Há também uma célula descritiva paralela em `modeling.ipynb` que mostra o efeito de `dropna(TotalCharges)` (resultando 7.032 linhas com distribuição {0: 5.163, 1: 1.869}); ela é puramente exploratória e não alimenta o pipeline de produção.
 - Sem duplicatas.
 - Sem missing values críticos após o tratamento de `TotalCharges`.
 
@@ -102,7 +102,7 @@ A engenharia de features vive em `src/application/transformers.py::FeatureEngine
 
 1. Encoding binário (Yes/No → 1/0) em 11 colunas.
 2. `InternetService`: DSL/Fiber → 1, No → 0.
-3. `log1p(TotalCharges)` (lida com `tenure=0` via NaN-safe).
+3. `TotalCharges`: imputa NaN como `MonthlyCharges × tenure` (clientes com `tenure=0`) e aplica `log1p`.
 4. **Feature engineering:**
    - `tenure_bucket` (binning: 0-12, 13-24, 25-48, 49+).
    - `avg_charges_per_month = TotalCharges / tenure`.

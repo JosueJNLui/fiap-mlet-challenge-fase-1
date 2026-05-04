@@ -45,10 +45,10 @@ def find_optimal_threshold(
     best_threshold, max_lucro = 0.5, -float("inf")
     for t in np.linspace(0.01, 0.99, n_points):
         y_pred = (y_proba >= t).astype(int)
-        try:
-            _tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-        except ValueError:
-            continue
+        # `labels=[0, 1]` garante matriz 2x2 mesmo quando uma das classes esta
+        # ausente em `y_true` ou `y_pred` (silencia o UserWarning do sklearn e
+        # evita erro de unpacking).
+        _tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
         lucro = _net_profit(tp, fp, fn)
         if lucro > max_lucro:
             max_lucro, best_threshold = lucro, float(t)

@@ -92,3 +92,15 @@ def test_calculate_metrics_dummy_majority_baseline_is_unprofitable() -> None:
     assert out["lucro_liquido_BRL"] < 0
     assert out["custo_churn_perdido_BRL"] == 270 * VALOR_CLIENTE_LTV
     assert out["custo_falso_positivo_BRL"] == 0
+
+
+def test_find_optimal_threshold_handles_single_class_data() -> None:
+    # Dataset degenerado (so classe 0): a varredura nao deve falhar nem
+    # emitir warnings do sklearn (`labels=[0, 1]` forca matriz 2x2). Como o
+    # lucro e 0 em todos os thresholds, o primeiro da grade e selecionado.
+    y_true = np.zeros(10, dtype=int)
+    y_proba = np.zeros(10)
+
+    t = find_optimal_threshold(y_true, y_proba)
+
+    assert t == pytest.approx(0.01)

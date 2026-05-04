@@ -32,7 +32,6 @@ from ..application.predictor import (
 )
 from ..config import Settings
 
-
 _LOADERS = {
     "sklearn": (mlflow.sklearn.load_model, sklearn_inference),
     "pytorch": (mlflow.pytorch.load_model, pytorch_inference),

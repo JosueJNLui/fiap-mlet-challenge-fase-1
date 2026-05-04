@@ -17,12 +17,12 @@ from starlette.middleware.base import RequestResponseEndpoint
 # Diagnostic: enables `kill -USR1 <pid>` to dump all-thread tracebacks. Helps
 # debug startup hangs (e.g. blocking MLflow/urllib3 calls in the lifespan).
 faulthandler.enable()
-if hasattr(signal, "SIGUSR1"):
+if hasattr(signal, "SIGUSR1"):  # pragma: no cover - POSIX-only branch (no SIGUSR1 on Windows)
     faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
 
-from .api.routes import api_router
-from .config import Settings, get_settings
-from .infrastructure.mlflow_loader import load_predictor
+from .api.routes import api_router  # noqa: E402 — imported after faulthandler setup by design
+from .config import Settings, get_settings  # noqa: E402
+from .infrastructure.mlflow_loader import load_predictor  # noqa: E402
 
 API_DESCRIPTION = """
 API REST de **previsão de churn** para clientes Telco, servindo o modelo

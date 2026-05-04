@@ -14,7 +14,7 @@ releases:
 
         image:
           repository: ghcr.io/josuejnlui/fiap-mlet-challenge-fase-1
-          tag: feat-ci-docker
+          tag: latest
           pullPolicy: IfNotPresent
 
         service:
@@ -36,7 +36,7 @@ releases:
         resources:
           requests:
             cpu: 100m
-            memory: 512Mi
+            memory: 380Mi
           limits:
             cpu: 500m
             memory: 768Mi
@@ -78,10 +78,15 @@ releases:
         env:
           MLFLOW_TRACKING_URI: "https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow"
           MLFLOW_TRACKING_USERNAME: "JosueJNLui"
-          MODEL_NAME: "Churn_MLP_Final_Production"
-          MODEL_VERSION: "8"
-          PREDICTION_THRESHOLD: "0.20303030303030303"
+          MODEL_FLAVOR: "sklearn"
+          MODEL_NAME: "Churn_LogReg_Final_Production"
+          MODEL_VERSION: "3"
+          SCALER_ARTIFACT_PATH: "model_components/scaler.joblib"
+          PREDICTION_THRESHOLD: "0.2080"
           LOAD_MODEL_ON_STARTUP: "true"
+          DOCS_URL: "/docs"
+          REDOC_URL: "/redoc"
+          OPENAPI_URL: "/openapi.json"
 
         secretEnv:
           enabled: true

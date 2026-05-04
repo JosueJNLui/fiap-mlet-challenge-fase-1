@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     Lidas das variáveis de ambiente (e de um `.env` local, se existir). O
     cliente do MLflow consome `MLFLOW_TRACKING_USERNAME` e
-    `MLFLOW_TRACKING_PASSWORD` automaticamente — populamos essas envs a partir
+    `MLFLOW_TRACKING_PASSWORD` automaticamente. Populamos essas envs a partir
     das settings no loader, então quem faz o deploy pode usar qualquer um dos
     estilos.
     """

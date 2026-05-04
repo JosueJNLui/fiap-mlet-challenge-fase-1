@@ -13,17 +13,17 @@
 | Caso de uso primário | Atendente em call vê o score do cliente na hora; CRM consulta sob demanda quando ticket é aberto | Lista diária pré-computada |
 | Latência aceitável | < 200ms p95 | Horas |
 | Frescor do score | Score reflete os dados mais recentes do cliente passados no payload | Score "envelhece" durante o dia |
-| Volume esperado | Baixo a moderado (dezenas/centenas de req/s) — modelo leve roda confortável em CPU | Alto (todos os clientes em janela) — também viável, mas não é o padrão de uso |
+| Volume esperado | Baixo a moderado (dezenas/centenas de req/s); modelo leve roda confortável em CPU | Alto (todos os clientes em janela); também viável, mas não é o padrão de uso |
 | Custo operacional | Container leve, scaling horizontal simples | Pipeline ETL + storage + orquestração |
 | Integração com CRM/atendimento | HTTP é universal | Exige acoplamento com data lake |
 
-**Conclusão:** o uso primário é **consulta interativa** disparada por evento (atendente, ticket, campanha proativa). Real-time elimina staleness e simplifica a integração. Para casos de **score em massa** (ex.: campanha mensal cobrindo toda a base), o mesmo container pode ser invocado em modo *fan-out* a partir de um job batch — mas o serviço primário é online.
+**Conclusão:** o uso primário é **consulta interativa** disparada por evento (atendente, ticket, campanha proativa). Real-time elimina staleness e simplifica a integração. Para casos de **score em massa** (ex.: campanha mensal cobrindo toda a base), o mesmo container pode ser invocado em modo *fan-out* a partir de um job batch, mas o serviço primário é online.
 
 ### Alternativas avaliadas e descartadas
 
-- **Batch diário pré-computado** — descartado: staleness inaceitável quando cliente acabou de mudar de plano ou abrir ticket.
-- **Streaming (Kafka + Flink/Faust)** — descartado: overhead injustificado para o volume esperado e o caso de uso. Reabrir se chegarmos a >5k req/s sustentados.
-- **Serverless (AWS Lambda / Cloud Functions)** — descartável, mas o cold start do PyTorch (~2-3s para carregar `torch` + scaler) é proibitivo para SLA de 200ms. Container com modelo já carregado em memória vence.
+- **Batch diário pré-computado:** descartado, staleness inaceitável quando cliente acabou de mudar de plano ou abrir ticket.
+- **Streaming (Kafka + Flink/Faust):** descartado, overhead injustificado para o volume esperado e o caso de uso. Reabrir se chegarmos a >5k req/s sustentados.
+- **Serverless (AWS Lambda / Cloud Functions):** descartável, mas o cold start do PyTorch (~2-3s para carregar `torch` + scaler) é proibitivo para SLA de 200ms. Container com modelo já carregado em memória vence.
 
 ---
 
@@ -108,9 +108,9 @@ sequenceDiagram
 | Latência p99 `/predict` | < 500ms | rolling 7d | idem |
 | Disponibilidade | ≥ 99.5% | mensal | uptime do `/health` |
 | Taxa de erro 5xx | < 0.5% | rolling 24h | logs JSON |
-| Taxa de erro 4xx (validação) | informacional | — | sinal de cliente mal-formado |
-| RTO (recovery time objective) | < 5 min | — | rollback de versão via env var |
-| RPO (recovery point objective) | 0 (stateless) | — | API não persiste estado |
+| Taxa de erro 4xx (validação) | informacional | - | sinal de cliente mal-formado |
+| RTO (recovery time objective) | < 5 min | - | rollback de versão via env var |
+| RPO (recovery point objective) | 0 (stateless) | - | API não persiste estado |
 
 > Os SLOs estão dimensionados para o caso de uso atual (uso interno, dezenas a centenas de req/s). Renegociar em escala maior.
 
@@ -132,7 +132,7 @@ stateDiagram-v2
 
 - **Fail-fast no startup:** se `load_predictor()` falhar (MLflow inacessível, versão removida, scaler ausente), o lifespan levanta exceção e o pod entra em CrashLoop. Kubernetes/Docker isso é detectado pelo readiness probe e o pod **não** é incluído no Service.
 - **Singleton em memória:** modelo carregado uma vez por pod em `app.state.predictor`. Cada request reusa via `Depends(get_predictor)`.
-- **Refresh de modelo:** **redeploy** com nova `MODEL_VERSION` (declarativo). Sem hot-reload — preferimos rollouts canários a swaps em runtime.
+- **Refresh de modelo:** **redeploy** com nova `MODEL_VERSION` (declarativo). Sem hot-reload, preferimos rollouts canários a swaps em runtime.
 
 ---
 
@@ -152,8 +152,8 @@ stateDiagram-v2
 | Métrica | Limite | Próximo passo |
 |---|---|---|
 | Throughput sustentado | > 5k req/s | Avaliar gRPC + protobuf |
-| Latência p99 cresce > 1s | — | Avaliar batch micro-batching ou GPU |
-| Modelo cresce > 100MB | — | Avaliar TorchServe ou KServe |
+| Latência p99 cresce > 1s | - | Avaliar batch micro-batching ou GPU |
+| Modelo cresce > 100MB | - | Avaliar TorchServe ou KServe |
 
 ---
 
@@ -178,8 +178,8 @@ Toda configuração é externalizada (12-factor). Defaults em `src/config.py`. V
 | `MLFLOW_TRACKING_URI` | Endpoint do MLflow (DagsHub por padrão) |
 | `MLFLOW_TRACKING_USERNAME` / `_PASSWORD` | Credenciais (SecretStr, nunca logadas) |
 | `MODEL_FLAVOR` | `sklearn` (LogReg, default) ou `pytorch` (MLP, alternativa A/B-testável) |
-| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico — **sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `3`) |
-| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2080` para LogReg; `0.20303030303030303` para o MLP A/B) |
+| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico. **Sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `3`; para `MODEL_FLAVOR=pytorch`, `Churn_MLP_Final_Production` / `12`) |
+| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2080` para LogReg; `0.20303` para o MLP A/B) |
 | `LOAD_MODEL_ON_STARTUP` | `false` apenas para dev/debug |
 | `DOCS_URL` | Vazio em prod para desabilitar Swagger sem alterar código |
 
@@ -200,7 +200,7 @@ Para um deploy mínimo (2 pods em qualquer Kubernetes managed ou Cloud Run-like)
 
 ## 10. Documentos Relacionados
 
-- [`DEPLOYMENT.md`](DEPLOYMENT.md) — guia prático de deploy com diagramas para Helm/Kubernetes e Terraform/AWS ECS.
-- [`MODEL_CARD.md`](MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
-- [`MONITORING.md`](MONITORING.md) — métricas, SLOs operacionais, alertas, playbook.
-- [`../README.md`](../README.md) — instruções de setup e uso.
+- [`DEPLOYMENT.md`](DEPLOYMENT.md): guia prático de deploy com diagramas para Helm/Kubernetes e Terraform/AWS ECS.
+- [`MODEL_CARD.md`](MODEL_CARD.md): performance, vieses, limitações, cenários de falha.
+- [`MONITORING.md`](MONITORING.md): métricas, SLOs operacionais, alertas, playbook.
+- [`../README.md`](../README.md): instruções de setup e uso.

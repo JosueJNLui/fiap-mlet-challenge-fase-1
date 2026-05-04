@@ -36,7 +36,7 @@ class PredictRequest(BaseModel):
 
     Espelha as colunas de `data/dataset/telco_customer_churn.csv` exceto
     `customerID` (descartada no treino). Os enums e ranges replicam o dataset
-    original — assim o consumidor não precisa conhecer o pré-processamento
+    original; assim o consumidor não precisa conhecer o pré-processamento
     interno (encoding, scaler, threshold).
     """
 
@@ -130,7 +130,7 @@ class PredictResponse(BaseModel):
     prediction: bool = Field(
         description=(
             "`true` quando `churn_probability >= threshold`. Use este campo "
-            "como decisão final — o threshold já incorpora a regra de negócio."
+            "como decisão final, pois o threshold já incorpora a regra de negócio."
         ),
     )
     threshold: float = Field(
@@ -138,11 +138,11 @@ class PredictResponse(BaseModel):
             "Limiar de decisão otimizado em curva PR para minimizar custo "
             "de churn evitado. Devolvido para auditoria."
         ),
-        examples=[0.20303030303030303],
+        examples=[0.2080],
     )
     model_version: str = Field(
         description="Versão do modelo registrada no MLflow que serviu a resposta.",
-        examples=["8"],
+        examples=["3"],
     )
     request_id: str = Field(
         description=(
@@ -157,8 +157,8 @@ class PredictResponse(BaseModel):
             "example": {
                 "churn_probability": 0.42,
                 "prediction": True,
-                "threshold": 0.20303030303030303,
-                "model_version": "8",
+                "threshold": 0.2080,
+                "model_version": "3",
                 "request_id": "9f4a3f7b-2e1c-4b8a-9c5d-1a2b3c4d5e6f",
             }
         }
@@ -203,7 +203,7 @@ class ValidationErrorResponse(BaseModel):
 
 
 class ServiceUnavailableResponse(BaseModel):
-    """Modelo carregado com falha — API não está pronta para servir predições."""
+    """Modelo carregado com falha. A API não está pronta para servir predições."""
 
     detail: str = Field(
         description="Mensagem explicando o motivo da indisponibilidade.",

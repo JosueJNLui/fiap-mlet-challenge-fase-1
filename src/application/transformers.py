@@ -2,7 +2,7 @@
 
 A engenharia de features replica exatamente o que ``notebooks/modeling.ipynb``
 faz. A versão original vive em :mod:`preprocessing` como ``preprocess_one``
-(orientado a 1 payload) — :class:`FeatureEngineer` reusa as mesmas constantes
+(orientado a 1 payload), :class:`FeatureEngineer` reusa as mesmas constantes
 e helpers, mas opera em DataFrames de qualquer tamanho, podendo entrar em
 um ``sklearn.Pipeline`` no caminho de treino e inferência.
 """

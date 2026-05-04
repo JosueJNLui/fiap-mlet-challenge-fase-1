@@ -2,7 +2,7 @@
 
 > Métricas, SLOs, alertas e playbook de resposta para a API de predição de churn.
 >
-> **Status atual:** este documento define o **plano**. A coleta básica (latência, request_id, logs JSON) já está implementada (`src/main.py:140-163`); a coleta de métricas de modelo e negócio depende de feedback loop ainda **não implementado** (gap conhecido — ver §6).
+> **Status atual:** este documento define o **plano**. A coleta básica (latência, request_id, logs JSON) já está implementada (`src/main.py:140-163`); a coleta de métricas de modelo e negócio depende de feedback loop ainda **não implementado** (gap conhecido, ver §6).
 
 ## 1. Camadas de Monitoramento
 
@@ -70,7 +70,7 @@ Logs em **stdout em JSON** já estão prontos para serem coletados por qualquer 
 
 Métricas que detectam **degradação do modelo** independente da infraestrutura.
 
-### Data drift — KS test em features-chave
+### Data drift: KS test em features-chave
 
 Variáveis com maior poder discriminativo identificadas em `notebooks/eda.ipynb`:
 
@@ -88,7 +88,7 @@ Variáveis com maior poder discriminativo identificadas em `notebooks/eda.ipynb`
 ### Prediction drift
 
 - **Métrica:** distribuição de `churn_probability` retornada (mediana, p25, p75) por dia.
-- **Baseline:** distribuição em validação (mediana ~0.27, alinhada com taxa real de churn).
+- **Baseline:** distribuição esperada em validação com mediana próxima da taxa real de churn (26,6% no conjunto modelado, ver Model Card §3). Adotamos `~0.27` como referência narrativa.
 - **Alerta:** mediana fora de [0.18, 0.36] por 3 dias consecutivos.
 
 ### Performance (requer rótulos reais)
@@ -100,8 +100,8 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 | ROC-AUC | 0.849 | < 0.80 |
 | PR-AUC | 0.672 | < 0.60 |
 | F1 (churn) | 0.560 | < 0.50 |
-| Recall (churn) | 0.96 | < 0.90 |
-| Precision (churn) | 0.40 | < 0.30 |
+| Recall (churn) | 0.960 | < 0.90 |
+| Precision (churn) | 0.395 | < 0.30 |
 
 **Cálculo:** comparar predição do dia D (probabilidade ≥ threshold) com churn real em D+90.
 
@@ -134,10 +134,10 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 
 | Severidade | Critério | Canal | Tempo de resposta |
 |---|---|---|---|
-| **P1 — crítico** | API indisponível, taxa 5xx > 5%, modelo retorna NaN/erro | PagerDuty | < 15 min |
-| **P2 — alto** | Latência p95 > 300ms, ROC-AUC abaixo de baseline, drift em ≥3 features | Slack `#ml-ops` | < 1h |
-| **P3 — médio** | Drift parcial (1-2 features), prediction drift, lucro mensal abaixo do alvo | Slack `#ml-ops` | < 1 dia |
-| **P4 — info** | Mudanças notáveis sem ação imediata (novos enums, primeiro alerta de drift) | Email semanal | revisão de rotina |
+| **P1 (crítico)** | API indisponível, taxa 5xx > 5%, modelo retorna NaN/erro | PagerDuty | < 15 min |
+| **P2 (alto)** | Latência p95 > 300ms, ROC-AUC abaixo de baseline, drift em ≥3 features | Slack `#ml-ops` | < 1h |
+| **P3 (médio)** | Drift parcial (1-2 features), prediction drift, lucro mensal abaixo do alvo | Slack `#ml-ops` | < 1 dia |
+| **P4 (info)** | Mudanças notáveis sem ação imediata (novos enums, primeiro alerta de drift) | Email semanal | revisão de rotina |
 
 ---
 
@@ -147,7 +147,7 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 
 1. Verificar carga (req/s) e CPU dos pods.
 2. Escalar horizontalmente (mais réplicas).
-3. Se persistir: investigar bottleneck — geralmente preprocessing (alocação de DataFrame por request) ou import de PyTorch (não deveria, é só forward).
+3. Se persistir: investigar bottleneck. Geralmente é preprocessing (alocação de DataFrame por request) ou import de PyTorch (não deveria, é só forward).
 4. Considerar habilitar **batch micro-batching** se throughput passar a justificar.
 
 ### Cenário B: Taxa 5xx > 1%
@@ -195,16 +195,16 @@ A camada técnica (§2) já está pronta. As demais demandam trabalho:
 
 | Fase | Escopo | Dependências |
 |---|---|---|
-| **1 — Métricas técnicas (atual)** | Latência, request_id, logs JSON | ✅ implementado |
-| **2 — Prometheus/Grafana** | `/metrics` endpoint + dashboards | `prometheus-fastapi-instrumentator` |
-| **3 — Drift monitoring** | Job offline diário sobre logs de predição | Persistência de payloads (LGPD: anonimizar) |
-| **4 — Feedback loop** | Integração CRM → DW → métricas de negócio | Acordo com time de retenção |
-| **5 — Retreino automatizado** | Pipeline disparado por alerta de drift | MLflow Pipelines / Airflow / Kubeflow |
+| **1. Métricas técnicas (atual)** | Latência, request_id, logs JSON | ✅ implementado |
+| **2. Prometheus/Grafana** | `/metrics` endpoint + dashboards | `prometheus-fastapi-instrumentator` |
+| **3. Drift monitoring** | Job offline diário sobre logs de predição | Persistência de payloads (LGPD: anonimizar) |
+| **4. Feedback loop** | Integração CRM → DW → métricas de negócio | Acordo com time de retenção |
+| **5. Retreino automatizado** | Pipeline disparado por alerta de drift | MLflow Pipelines / Airflow / Kubeflow |
 
 ---
 
 ## 8. Documentos Relacionados
 
-- [`MODEL_CARD.md`](MODEL_CARD.md) — performance esperada, limitações, cenários de falha.
-- [`ARCHITECTURE_DEPLOY.md`](ARCHITECTURE_DEPLOY.md) — arquitetura e SLOs de infra.
-- [`../README.md`](../README.md) — setup e uso da API.
+- [`MODEL_CARD.md`](MODEL_CARD.md): performance esperada, limitações, cenários de falha.
+- [`ARCHITECTURE_DEPLOY.md`](ARCHITECTURE_DEPLOY.md): arquitetura e SLOs de infra.
+- [`../README.md`](../README.md): setup e uso da API.

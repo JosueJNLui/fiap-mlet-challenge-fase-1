@@ -2,12 +2,12 @@
 
 A Pipeline encapsula:
 
-* :class:`FeatureEngineer` — engenharia de features determinística (one-hot
+* :class:`FeatureEngineer`, engenharia de features determinística (one-hot
   fixo, mapeamentos binários, derivações tenure/charges) que parte do payload
   bruto do Telco.
-* :class:`StandardScaler` — z-score das 28 colunas resultantes; ajustado no
+* :class:`StandardScaler`, z-score das 28 colunas resultantes; ajustado no
   treino, reaplicado em inferência.
-* :class:`LogisticRegression` — classificador final com
+* :class:`LogisticRegression`, classificador final com
   ``class_weight='balanced'``.
 
 Single source of truth: tanto ``notebooks/modeling.ipynb`` (treinamento

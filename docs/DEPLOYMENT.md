@@ -272,10 +272,10 @@ mantendo a imagem Docker imutável.
 | `MLFLOW_TRACKING_URI` | `https://dagshub.com/...mlflow` | Registry remoto do DagsHub |
 | `MLFLOW_TRACKING_USERNAME` | `JosueJNLui` | Usuário usado no Basic Auth quando necessário |
 | `MLFLOW_TRACKING_PASSWORD` | secret | Nunca versionar em texto puro |
-| `MODEL_FLAVOR` | `sklearn` | `sklearn` (LogReg, default) ou `pytorch` (MLP A/B-testável) |
-| `MODEL_NAME` | `Churn_LogReg_Final_Production` | Nome registrado no MLflow (default LogReg) |
-| `MODEL_VERSION` | `3` | Pinning determinístico recomendado em produção |
-| `PREDICTION_THRESHOLD` | `0.2080` | Threshold de negócio (LogReg; MLP usa `0.20303030303030303`) |
+| `MODEL_FLAVOR` | `sklearn` | `sklearn` (LogReg, default) ou `pytorch` (MLP A/B-testável, default `Churn_MLP_Final_Production` v12) |
+| `MODEL_NAME` | `Churn_LogReg_Final_Production` | Nome registrado no MLflow (default LogReg). Para `pytorch`, usar `Churn_MLP_Final_Production` |
+| `MODEL_VERSION` | `3` | Pinning determinístico recomendado em produção (LogReg v3; MLP v12) |
+| `PREDICTION_THRESHOLD` | `0.2080` | Threshold de negócio (LogReg; MLP usa `0.20303`) |
 | `LOAD_MODEL_ON_STARTUP` | `true` | Em produção deve permanecer `true` |
 
 ## Saúde, Observabilidade e Operação

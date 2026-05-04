@@ -177,8 +177,9 @@ Toda configuração é externalizada (12-factor). Defaults em `src/config.py`. V
 |---|---|
 | `MLFLOW_TRACKING_URI` | Endpoint do MLflow (DagsHub por padrão) |
 | `MLFLOW_TRACKING_USERNAME` / `_PASSWORD` | Credenciais (SecretStr, nunca logadas) |
-| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico — **sempre fixar `MODEL_VERSION` em produção** |
-| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.20303030303030303`) |
+| `MODEL_FLAVOR` | `sklearn` (LogReg, default) ou `pytorch` (MLP, alternativa A/B-testável) |
+| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico — **sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `3`) |
+| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2080` para LogReg; `0.20303030303030303` para o MLP A/B) |
 | `LOAD_MODEL_ON_STARTUP` | `false` apenas para dev/debug |
 | `DOCS_URL` | Vazio em prod para desabilitar Swagger sem alterar código |
 
@@ -199,7 +200,7 @@ Para um deploy mínimo (2 pods em qualquer Kubernetes managed ou Cloud Run-like)
 
 ## 10. Documentos Relacionados
 
-- [`../deploy/README.md`](../deploy/README.md) — guia prático de deploy com diagramas para Helm/Kubernetes e Terraform/AWS ECS.
+- [`DEPLOYMENT.md`](DEPLOYMENT.md) — guia prático de deploy com diagramas para Helm/Kubernetes e Terraform/AWS ECS.
 - [`MODEL_CARD.md`](MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
 - [`MONITORING.md`](MONITORING.md) — métricas, SLOs operacionais, alertas, playbook.
 - [`../README.md`](../README.md) — instruções de setup e uso.

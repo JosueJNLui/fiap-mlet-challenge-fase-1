@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Runtime settings for the churn prediction API.
+    """Configurações de runtime da API de previsão de churn.
 
-    Reads from environment variables (and a local `.env` if present). The
-    MLflow tracking client picks up `MLFLOW_TRACKING_USERNAME` and
-    `MLFLOW_TRACKING_PASSWORD` automatically — we set them from settings in the
-    loader, so deployers can supply either env style.
+    Lidas das variáveis de ambiente (e de um `.env` local, se existir). O
+    cliente do MLflow consome `MLFLOW_TRACKING_USERNAME` e
+    `MLFLOW_TRACKING_PASSWORD` automaticamente — populamos essas envs a partir
+    das settings no loader, então quem faz o deploy pode usar qualquer um dos
+    estilos.
     """
 
     model_config = SettingsConfigDict(
@@ -27,14 +29,15 @@ class Settings(BaseSettings):
     )
     mlflow_tracking_username: str = "JosueJNLui"
     mlflow_tracking_password: SecretStr = SecretStr("")
-    model_name: str = "Churn_MLP_Final_Production"
-    model_version: str = "8"
+    model_name: str = "Churn_LogReg_Final_Production"
+    model_version: str = "3"
     scaler_artifact_path: str = "model_components/scaler.joblib"
-    prediction_threshold: float = 0.20303030303030303
+    prediction_threshold: float = 0.2080
+    model_flavor: Literal["sklearn", "pytorch"] = "sklearn"
     load_model_on_startup: bool = True
 
-    # OpenAPI / Swagger UI. Set any of these to an empty string to disable the
-    # corresponding endpoint in production (e.g. `DOCS_URL=`).
+    # OpenAPI / Swagger UI. Defina qualquer um destes como string vazia para
+    # desabilitar o endpoint correspondente em produção (ex.: `DOCS_URL=`).
     docs_url: str | None = "/docs"
     redoc_url: str | None = "/redoc"
     openapi_url: str | None = "/openapi.json"

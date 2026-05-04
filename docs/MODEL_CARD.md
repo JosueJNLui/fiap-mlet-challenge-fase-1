@@ -6,15 +6,25 @@
 
 | Campo | Valor |
 |---|---|
-| **Nome** | `Churn_MLP_Final_Production` |
-| **Versão em produção** | `8` (MLflow Model Registry — DagsHub) |
-| **Algoritmo servido** | MLP (PyTorch) — empacotado com `StandardScaler` (sklearn) e threshold de negócio |
-| **Modelo de referência (recomendado)** | Logistic Regression (selecionado por parsimônia) |
+| **Nome** | `Churn_LogReg_Final_Production` |
+| **Versão em produção** | última versão registrada (alias `@production`); a partir da Etapa 3 o artefato é uma `sklearn.Pipeline` empacotada |
+| **Algoritmo servido** | Logistic Regression (sklearn) servida como `sklearn.Pipeline(FeatureEngineer → StandardScaler → LogReg)` empacotada num único artefato MLflow + threshold de negócio |
+| **Modelo alternativo (A/B-testável)** | MLP (PyTorch) — registrado como `Churn_MLP_Final_Production` v8; selecionável via `MODEL_FLAVOR=pytorch` no `.env` (ver §7.1) |
 | **Data de treino** | Q1/2026 |
 | **Owner / responsável** | Equipe FIAP MLET — Fase 1 |
 | **Tracking** | DagsHub MLflow — `https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow` |
 
-### Arquitetura do MLP servido
+### Hiperparâmetros da LogReg servida
+
+- **Solver:** `lbfgs`.
+- **Regularização:** L2 (default), `C=1.0`.
+- **Tratamento de desbalanceamento:** `class_weight='balanced'`.
+- **`max_iter`:** 1000.
+- **`random_state`:** 42.
+
+A escolha da LogReg como modelo servido decorre da equivalência estatística com o MLP no K-Fold pareado (Friedman + Nemenyi p≈0.997) somada à liderança em lucro de hold-out (R$ 81.200 vs R$ 76.300 do MLP) e à vantagem operacional em **interpretabilidade, parsimônia e auditabilidade** (ver §5 e a célula de promoção em [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb)).
+
+### Arquitetura do MLP (alternativa A/B-testável)
 
 ```
 ChurnMLP(
@@ -86,7 +96,7 @@ Comparação registrada em `notebooks/eda.ipynb`:
 
 ## 4. Pré-processamento e Features
 
-Pipeline reprodutível em `src/application/preprocessing.py` (espelha o notebook):
+A engenharia de features vive em `src/application/transformers.py::FeatureEngineer` (`BaseEstimator` + `TransformerMixin`) e é orquestrada pelo `sklearn.Pipeline` montado em `src/application/pipeline.py::build_logreg_pipeline`. O fluxo, aplicado por `FeatureEngineer.transform`:
 
 1. Encoding binário (Yes/No → 1/0) em 11 colunas.
 2. `InternetService`: DSL/Fiber → 1, No → 0.
@@ -98,7 +108,16 @@ Pipeline reprodutível em `src/application/preprocessing.py` (espelha o notebook
    - `num_services` (soma dos 9 serviços contratados).
 5. One-hot encoding manual: `gender`, `Contract`, `PaymentMethod`, `tenure_bucket`.
 6. `reindex` para `EXPECTED_FEATURE_ORDER` (28 features fixas) — **single source of truth** entre treino e produção.
-7. `StandardScaler` (sklearn) carregado como artefato MLflow do mesmo run do modelo.
+7. `StandardScaler` é o segundo step da Pipeline; ajustado no fit do bundle e serializado dentro do mesmo artefato sklearn (não há mais download separado de `scaler.joblib` no flavor sklearn).
+
+### Validação de schema (pandera)
+
+`src/application/data_schemas.py` define dois `DataFrameSchema`:
+
+- `RAW_TELCO_SCHEMA` — 21 colunas do CSV bruto, com tipos, vocabulários e ranges. Usado em `notebooks/eda.ipynb` como passo formal de *data readiness*.
+- `PROCESSED_FEATURES_SCHEMA` — 28 colunas float em ordem fixa, validando a saída de `preprocess_one`/`FeatureEngineer.transform`. Usado em testes (`tests/application/test_data_schemas.py`).
+
+Os schemas não são chamados no hot-path da API (overhead desnecessário em payloads de 1 linha), mas firmam o contrato testado entre treino e inferência.
 
 ---
 
@@ -108,10 +127,12 @@ Pipeline reprodutível em `src/application/preprocessing.py` (espelha o notebook
 
 | Modelo | ROC-AUC | PR-AUC | F1 (churn) | Recall | Precision | Accuracy |
 |---|---|---|---|---|---|---|
-| DummyClassifier (maj.) | 0.500 | — | 0.000 | 0.00 | 0.00 | 0.73 |
-| **Logistic Regression** | **0.849** | **0.672** | **0.560** | **0.96** | **0.40** | 0.74 |
-| Random Forest (100, depth=10) | 0.841 | 0.645 | 0.551 | 0.95 | 0.40 | 0.74 |
-| MLP (top-1 grid search) | 0.847 | 0.673 | 0.541 | 0.97 | 0.39 | 0.73 |
+| DummyClassifier (maj.) | 0.500 | 0.633 | 0.000 | 0.00 | 0.00 | 0.73 |
+| **Logistic Regression** | **0.849** | **0.672** | **0.560** | **0.96** | **0.40** | 0.60 |
+| Random Forest (100, depth=10) | 0.840 | 0.645 | 0.551 | 0.95 | 0.39 | 0.59 |
+| MLP (top-1 grid search) | 0.849 | — | 0.550 | 0.95 | 0.39 | 0.59 |
+
+> **Nota sobre Accuracy:** os valores baixos (0.59–0.60) refletem o threshold otimizado por **lucro líquido** (~0.21), não por F1. Como cada FN custa 5× mais que cada FP, o ponto de operação favorece recall e sacrifica accuracy. O Dummy mantém accuracy alta (0.73) porque sempre prediz a classe majoritária. PR-AUC do MLP não é publicado pela célula consolidadora de `models-comparison.ipynb`; ver `modeling.ipynb` runs MLflow individuais para o valor por fold.
 
 ### Métrica de negócio: Lucro Líquido (BRL)
 
@@ -122,24 +143,30 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
         com LTV = R$ 500 e Custo_retencao = R$ 100
 ```
 
+> **Auditabilidade:** o cálculo é centralizado em [`src/application/business_metrics.py`](../src/application/business_metrics.py) e consumido pelos três notebooks (`eda`, `modeling`, `models-comparison`). Qualquer ajuste de LTV, custo de retenção ou da fórmula passa por esse módulo + teste em [`tests/application/test_business_metrics.py`](../tests/application/test_business_metrics.py).
+
 | Modelo | Lucro K-Fold | Lucro hold-out | FP × R$100 | FN × R$500 |
 |---|---|---|---|---|
 | DummyClassifier | — | **−R$ 187.000** | — | R$ 187.000 |
 | **Logistic Regression** | R$ 33.120 | **R$ 81.200** | R$ 54.900 | R$ 7.500 |
-| Random Forest | R$ 32.340 | R$ 77.800 | — | — |
-| MLP (top-1) | R$ 33.120 | R$ 79.700 | R$ 60.900 | R$ 5.000 |
+| Random Forest | R$ 32.340 | R$ 77.800 | R$ 56.500 | R$ 8.500 |
+| MLP (top-1) | R$ 32.980 | R$ 76.300 | R$ 56.200 | R$ 9.500 |
 
 ### Threshold de decisão (otimizado para negócio)
 
-- **Threshold servido:** `0.20303030303030303`.
-- Selecionado varrendo a curva PR e maximizando o **lucro líquido** em validação (não o F1).
-- Reflete a assimetria de custo: cada FN custa 5× mais que cada FP (LTV R$ 500 vs custo retenção R$ 100), então o threshold é deliberadamente baixo para favorecer recall.
+- **Threshold servido:** `0.2080` (LogReg, otimizado pela curva de lucro na célula `Pipeline de produção` de `notebooks/modeling.ipynb`; persistido como tag `threshold_servido` na versão `@production` do modelo MLflow).
+- **Threshold do MLP alternativo:** `0.20303030303030303` (otimizado no K-Fold 10-fold em `notebooks/modeling.ipynb`).
+- Cada threshold foi selecionado varrendo a curva PR do **seu próprio modelo** e maximizando o **lucro líquido** em validação (não o F1) — por isso são distintos.
+- Reflete a assimetria de custo: cada FN custa 5× mais que cada FP (LTV R$ 500 vs custo retenção R$ 100), então ambos são deliberadamente baixos para favorecer recall.
+- O baseline da Etapa 1 (`notebooks/eda.ipynb`) usou um threshold inicial `0.2278` (CV 5-fold) que rendeu lucro hold-out de R$ 80.200; a otimização final por curva de lucro da Etapa 3 trouxe o valor para `0.2080` (R$ 81.200) — é este último que vai para produção.
 
 ### Comparação estatística (Friedman + Nemenyi, 10-fold pareado)
 
 - **Friedman global:** p-value = `1.6e-04` → diferenças entre os 4+ modelos são significativas.
 - **Post-hoc Nemenyi:** Logistic Regression ≈ MLP (top-1), p = `0.997` → **estatisticamente equivalentes**.
-- **Decisão:** servir Logistic Regression (parsimônia, interpretabilidade), com MLP versionado como alternativa A/B-testável.
+- **Decisão:** servir Logistic Regression (parsimônia, interpretabilidade), com MLP versionado como alternativa A/B-testável (ver §7.1).
+
+> **Fonte dos números desta seção:** os resultados de Dummy/LogReg vêm das células finais de [`notebooks/eda.ipynb`](../notebooks/eda.ipynb); os de MLP/RandomForest/XGBoost de [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) e [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb). Em caso de divergência, **os notebooks são autoritativos** — este Model Card replica os valores publicados.
 
 ---
 
@@ -174,9 +201,17 @@ Insights de `notebooks/eda.ipynb` (análise bivariada com Mann-Whitney p<0.05 na
 | **Drift de produto** (lançamento de novo plano) | Distribuição de `Contract`, `MonthlyCharges` fora do treino | Retreino; até lá, monitorar drift via KS test (ver `MONITORING.md`) |
 | **Drift sazonal** (campanhas de Black Friday, fim de ano) | Pico de assinaturas Month-to-month e churn aumenta | Avaliar ROC-AUC mensal em amostra rotulada; reconfigurar threshold se necessário |
 | **Mudança de público-alvo** (ex.: passar a vender B2B) | Modelo prediz churn alto consistentemente | Não usar — o modelo não foi treinado para B2B |
-| **Falha no carregamento do scaler** | Predições com features não escaladas → scores degenerados | Lifespan fail-fast no startup; CI testa `load_predictor` (`tests/integration/`) |
+| **Falha no carregamento do modelo** (sklearn) | Pipeline não desserializa (versão de sklearn incompatível, classe `FeatureEngineer` ausente, etc.) | Lifespan fail-fast no startup; CI testa `load_predictor` mockado (`tests/infrastructure/`) e real (`tests/integration/`) |
+| **Falha no carregamento do scaler** (apenas pytorch) | MLP usa scaler salvo como `joblib` em `model_components/`. Se download do artefato falha, predições degeneram | Lifespan fail-fast; o flavor sklearn é imune (Pipeline empacotada) |
 | **Indisponibilidade do MLflow / DagsHub** | API falha ao subir | `MODEL_VERSION` pinado em env permite rollback determinístico; cache local opcional |
+| **Necessidade de A/B test ou rollback do flavor** | Performance da LogReg degrada em segmento específico, ou queremos comparar com MLP | Trocar `MODEL_FLAVOR` / `MODEL_NAME` / `MODEL_VERSION` / `PREDICTION_THRESHOLD` no `.env` e reiniciar — sem deploy de código (ver §7.1) |
 | **Payload mal-formado** | Erro 422 (Pydantic) | Validação automática antes de qualquer inferência |
+
+### 7.1 Considerações operacionais — modelo servido vs alternativa
+
+A API mantém **dois caminhos de inferência** (sklearn LogReg e PyTorch MLP) selecionáveis via `settings.model_flavor`. A LogReg é o default por parsimônia + equivalência estatística com o MLP (Nemenyi p≈0.997, ver §5). O MLP fica versionado como alternativa A/B-testável, útil em três cenários: (i) comparação prospectiva de performance em produção, (ii) rollback rápido se a LogReg degradar em algum segmento, (iii) análises pontuais que se beneficiem da capacidade não-linear.
+
+**Receita de troca** (sem deploy de código): editar o `.env` para o bloco "Fallback A/B-testável: MLP (PyTorch)" descrito em [`.env.example`](../.env.example) e reiniciar a API. Os invariantes que **não** mudam: lógica de feature engineering (`FeatureEngineer.transform` aplicada em ambos os caminhos), ordem das 28 features (`EXPECTED_FEATURE_ORDER`) e threshold otimizado por curva de lucro. O que muda por flavor: no sklearn, o `StandardScaler` vive dentro da `sklearn.Pipeline` (artefato único); no pytorch, ele é baixado separadamente de `model_components/scaler.joblib`. O carregamento é dispatchado em [`src/infrastructure/mlflow_loader.py`](../src/infrastructure/mlflow_loader.py).
 
 ---
 
@@ -188,6 +223,7 @@ Insights de `notebooks/eda.ipynb` (análise bivariada com Mann-Whitney p<0.05 na
 - **Sem análise formal de fairness por subgrupo** (gênero, faixa etária, etnia — esta última ausente do dataset).
 - **Threshold único global.** Não há thresholds segmentados por subgrupo, o que pode gerar desbalanço operacional (ex.: 90% do "high-risk pool" sendo Month-to-month).
 - **Sem mecanismo de feedback loop** para o resultado real da retenção (cliente realmente saiu?), o que limita o monitoramento de negócio (ver `MONITORING.md`).
+- **Assimetria de empacotamento entre flavors.** A LogReg de produção é servida como `sklearn.Pipeline` empacotada (1 artefato). O MLP A/B-testável continua como modelo PyTorch + `scaler.joblib` separado (2 artefatos), porque `torch.nn.Module` não cabe nativamente em `sklearn.Pipeline`. Aceito por escopo — adaptar via `skorch` ou wrapper custom é uma evolução futura.
 
 ---
 
@@ -217,11 +253,11 @@ make run
 curl -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d @payload.json
 ```
 
-Notebooks de referência:
+Notebooks de referência (cada um escreve em um experimento MLflow distinto, listados em `models-comparison.ipynb`):
 
-- [`notebooks/eda.ipynb`](../notebooks/eda.ipynb) — EDA, qualidade, distribuições, vieses por subgrupo.
-- [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) — baselines, MLP grid search, K-Fold, threshold otimizado.
-- [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb) — comparação visual e ranking por lucro.
+- [`notebooks/eda.ipynb`](../notebooks/eda.ipynb) — **Etapa 1**: EDA completa, baselines (DummyClassifier, Logistic Regression), métrica de negócio. Experimento: `Churn-Predict-Telco-Etapa1-EDA`.
+- [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) — **Etapa 2**: MLP em PyTorch (grid search 54 combinações, early stopping, K-Fold), ensembles (RandomForest, XGBoost), threshold otimizado, trade-off FP×FN. Experimento: `Churn-Predict-Telco-Etapa2-Modelagem`.
+- [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb) — **Etapas 1+2**: leitura cruzada dos dois experimentos, ranking por lucro, análise de estabilidade validação vs. teste.
 
 ---
 

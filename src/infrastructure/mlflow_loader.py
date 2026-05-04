@@ -1,3 +1,21 @@
+"""Carrega o predictor a partir do MLflow Registry (DagsHub).
+
+Dois caminhos coexistem, controlados por ``settings.model_flavor``:
+
+* **sklearn (default em produção):** o artefato registrado é uma
+  ``sklearn.Pipeline`` completa (FeatureEngineer + StandardScaler +
+  LogisticRegression). Carregamento é uma única chamada
+  ``mlflow.sklearn.load_model``; nada de scaler em arquivo separado.
+* **pytorch (fallback A/B-testável):** o MLP não cabe em ``sklearn.Pipeline``.
+  Continua sendo registrado como modelo PyTorch + scaler ``joblib`` em
+  ``model_components/scaler.joblib`` no mesmo run; ambos são carregados aqui.
+
+A escolha do flavor + versão acontece via variáveis de ambiente
+(``MODEL_FLAVOR`` / ``MODEL_NAME`` / ``MODEL_VERSION`` /
+``PREDICTION_THRESHOLD``) — alterná-las troca o caminho sem deploy de
+código (ver ``.env.example``).
+"""
+
 from __future__ import annotations
 
 import os
@@ -5,19 +23,21 @@ import os
 import joblib
 import mlflow
 import mlflow.pytorch
+import mlflow.sklearn
 from mlflow.tracking import MlflowClient
 
-from ..application.predictor import ChurnPredictor
+from ..application.predictor import ChurnPredictor, pytorch_inference
 from ..config import Settings
 
 
 def load_predictor(settings: Settings) -> ChurnPredictor:
-    """Loads the registered MLP and its scaler from the MLflow tracking server.
+    """Carrega o modelo registrado no MLflow tracking server.
 
-    Sets MLFLOW_TRACKING_USERNAME / PASSWORD env vars so the underlying client
-    uses Basic Auth (DagsHub's auth model). Both the model and the scaler
-    artifact live in the same run; we look up the run_id from the registry
-    and download the scaler artifact directly.
+    Define as env vars MLFLOW_TRACKING_USERNAME / PASSWORD para que o cliente
+    subjacente use Basic Auth (modelo de autenticação do DagsHub). A URI do
+    modelo é resolvida como ``models:/<name>/<version>``; no caminho PyTorch,
+    o scaler é baixado a partir do ``model_version.run_id`` e precisa vir
+    do mesmo run em que o modelo foi logado.
     """
     os.environ["MLFLOW_TRACKING_USERNAME"] = settings.mlflow_tracking_username
     os.environ["MLFLOW_TRACKING_PASSWORD"] = (
@@ -25,23 +45,34 @@ def load_predictor(settings: Settings) -> ChurnPredictor:
     )
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
 
-    client = MlflowClient(tracking_uri=settings.mlflow_tracking_uri)
-    model_version = client.get_model_version(
-        settings.model_name, settings.model_version
-    )
-
     model_uri = f"models:/{settings.model_name}/{settings.model_version}"
-    model = mlflow.pytorch.load_model(model_uri)
 
-    scaler_local_path = mlflow.artifacts.download_artifacts(
-        run_id=model_version.run_id,
-        artifact_path=settings.scaler_artifact_path,
-    )
-    scaler = joblib.load(scaler_local_path)
+    if settings.model_flavor == "sklearn":
+        pipeline = mlflow.sklearn.load_model(model_uri)
+        return ChurnPredictor.from_pipeline(
+            pipeline=pipeline,
+            threshold=settings.prediction_threshold,
+            version=settings.model_version,
+        )
 
-    return ChurnPredictor(
-        model=model,
-        scaler=scaler,
-        threshold=settings.prediction_threshold,
-        version=settings.model_version,
-    )
+    if settings.model_flavor == "pytorch":
+        client = MlflowClient(tracking_uri=settings.mlflow_tracking_uri)
+        model_version = client.get_model_version(
+            settings.model_name, settings.model_version
+        )
+        model = mlflow.pytorch.load_model(model_uri)
+        model.eval()
+        scaler_local_path = mlflow.artifacts.download_artifacts(
+            run_id=model_version.run_id,
+            artifact_path=settings.scaler_artifact_path,
+        )
+        scaler = joblib.load(scaler_local_path)
+        return ChurnPredictor(
+            model=model,
+            scaler=scaler,
+            threshold=settings.prediction_threshold,
+            version=settings.model_version,
+            inference_fn=pytorch_inference,
+        )
+
+    raise ValueError(f"Unsupported model_flavor: {settings.model_flavor!r}")

@@ -39,6 +39,7 @@ dev = [
     "xgboost==3.2.0",
     "scikit-posthocs==0.12.0",
     "httpie>=3.2.4",
+    "pandera[pandas]>=0.20.0",
 ]
 
 [[tool.uv.index]]
@@ -85,4 +86,5 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
+    "@overload",
 ]

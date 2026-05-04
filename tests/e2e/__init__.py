@@ -1,1 +1,1 @@
-"""End-to-end tests that exercise the API over real HTTP."""
+"""Testes ponta-a-ponta que exercitam a API por HTTP real."""

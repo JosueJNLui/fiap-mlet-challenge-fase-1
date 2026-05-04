@@ -46,21 +46,3 @@ Ao adicionar ou atualizar o projeto:
 2.  Use `poetry add <package>` para atualizar o `pyproject.toml`.
 3.  Use o **`uv`** para sincronizar o ambiente virtual instantaneamente: `uv pip install -r <(poetry export -f requirements.txt)` ou, se preferir o workflow direto, `uv sync` (se configurado com o poetry).
 4.  **Nota:** Priorize o `uv` para qualquer operação de download e sync por ser significativamente mais rápido.
-
-
-## 🔄 5. Checklist para Novas Features
-Sempre que eu solicitar uma feature, siga esta ordem:
-1.  **Domain:** Crie as regras de negócio e entidades.
-2.  **Tests:** Escreva os testes unitários.
-3.  **Application:** Implemente o Use Case.
-4.  **Interface:** Crie o endpoint FastAPI 0.136+ e adicione o log/middleware.
-5.  **Validation:** Rode o `ty` para tipos e `ruff` para estilo.
-6.  **Dependency:** Verifique se o `pyproject.toml` precisa de novos pacotes via Poetry.
-
----
-
-### Dica para o Cursor/Claude:
-Se você precisar rodar algum comando, prefira:
-* `uv run pytest` (para rodar testes rápido)
-* `uv run ty .` (para verificar tipos)
-* `uv run ruff check .` (para linting)

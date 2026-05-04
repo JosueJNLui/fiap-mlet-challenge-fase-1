@@ -6,9 +6,9 @@ from ..application.predictor import ChurnPredictor
 
 
 def get_predictor(request: Request) -> ChurnPredictor:
-    """Returns the predictor singleton stored on `app.state` during lifespan.
+    """Devolve o predictor singleton guardado em `app.state` pelo lifespan.
 
-    Tests override this via `app.dependency_overrides[get_predictor]` so they
-    don't have to populate `app.state` or hit MLflow.
+    Os testes sobrescrevem isto via `app.dependency_overrides[get_predictor]`
+    para não precisarem popular `app.state` nem acessar o MLflow.
     """
     return request.app.state.predictor  # type: ignore[no-any-return]

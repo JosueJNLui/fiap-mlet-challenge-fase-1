@@ -10,7 +10,7 @@ YesNoNoPhone = Literal["Yes", "No", "No phone service"]
 
 
 class HealthResponse(BaseModel):
-    """Liveness/readiness probe payload."""
+    """Payload do probe de liveness/readiness."""
 
     status: Literal["ok"] = Field(
         default="ok",
@@ -82,8 +82,8 @@ class PredictRequest(BaseModel):
         ge=0,
         description="Valor da fatura mensal vigente, em USD.",
     )
-    # The raw CSV stores TotalCharges as a string with occasional " " values
-    # for tenure==0; accept both float and str and coerce server-side.
+    # O CSV bruto guarda TotalCharges como string, com ocasionais " " para
+    # linhas com tenure==0; aceitamos float e str, com coerção feita no servidor.
     TotalCharges: float | str = Field(
         description=(
             "Valor total cobrado até hoje, em USD. Aceita `float` ou string "

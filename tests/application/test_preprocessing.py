@@ -52,9 +52,9 @@ def test_preprocess_one_binary_mappings(raw_payload: dict[str, Any]) -> None:
     assert out["OnlineSecurity"] == 1
     # InternetService=DSL → 1
     assert out["InternetService"] == 1
-    # gender_Male dummy is False/0 since gender="Female"
+    # dummy gender_Male é 0 porque gender="Female"
     assert out["gender_Male"] == 0
-    # Contract_One year fires
+    # Contract_One year é acionado
     assert out["Contract_One year"] == 1
     assert out["Contract_Two year"] == 0
 
@@ -69,7 +69,7 @@ def test_preprocess_one_log1p_applied_to_total_charges(
 def test_preprocess_one_handles_string_total_charges(
     raw_payload: dict[str, Any],
 ) -> None:
-    # As in the raw CSV, TotalCharges arrives as a string with " " for tenure==0.
+    # Como no CSV bruto, TotalCharges chega como string " " para tenure==0.
     payload = {**raw_payload, "tenure": 0, "TotalCharges": " "}
     out = preprocess_one(payload).iloc[0]
     # Fallback: MonthlyCharges * tenure = 75.5 * 0 = 0; log1p(0) = 0
@@ -79,15 +79,15 @@ def test_preprocess_one_handles_string_total_charges(
 def test_preprocess_one_num_services_count(raw_payload: dict[str, Any]) -> None:
     # PhoneService=1, MultipleLines=0, InternetService=1, OnlineSecurity=1,
     # OnlineBackup=0, DeviceProtection=0, TechSupport=1, StreamingTV=0,
-    # StreamingMovies=0  → total = 4
+    # StreamingMovies=0  → total = 4 serviços ativos
     out = preprocess_one(raw_payload).iloc[0]
     assert out["num_services"] == 4
 
 
 def test_preprocess_one_charge_vs_expected(raw_payload: dict[str, Any]) -> None:
     out = preprocess_one(raw_payload).iloc[0]
-    # The notebook applies log1p to TotalCharges BEFORE create_features,
-    # so avg uses the log-transformed value. Replicating that quirk.
+    # O notebook aplica log1p a TotalCharges ANTES de create_features,
+    # então a média usa o valor já log-transformado. Replicamos essa peculiaridade.
     log_total = np.log1p(1850.0)
     expected_avg = log_total / 24.0
     assert out["avg_charges_per_month"] == pytest.approx(expected_avg)

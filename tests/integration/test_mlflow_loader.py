@@ -1,8 +1,8 @@
-"""Integration tests against the real MLflow / DagsHub registry.
+"""Testes de integração contra o registry real do MLflow / DagsHub.
 
-These tests are skipped by default (`addopts = "-m 'not integration'"` in
-pyproject.toml). Run with `pytest -m integration` and valid DagsHub credentials
-in the environment to exercise the full load path.
+Estes testes são pulados por padrão (`addopts = "-m 'not integration'"` no
+pyproject.toml). Rode com `pytest -m integration` e credenciais válidas do
+DagsHub no ambiente para exercitar todo o caminho de carregamento.
 """
 
 from __future__ import annotations
@@ -38,8 +38,14 @@ def real_predictor() -> ChurnPredictor:
 def test_loads_real_model_from_registry(real_predictor: ChurnPredictor) -> None:
     assert real_predictor.version
     assert real_predictor.threshold > 0
-    assert real_predictor.model is not None
-    assert real_predictor.scaler is not None
+    # O flavor sklearn (default) encapsula a Pipeline completa; o flavor
+    # pytorch usa o caminho antigo, baseado em componentes separados.
+    if real_predictor._pipeline is not None:
+        assert real_predictor.model is None
+        assert real_predictor.scaler is None
+    else:
+        assert real_predictor.model is not None
+        assert real_predictor.scaler is not None
 
 
 def test_real_model_predicts_known_payload(real_predictor: ChurnPredictor) -> None:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import faulthandler
 import json
 import logging
+import signal
+import sys
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -11,13 +14,22 @@ from datetime import UTC, datetime
 from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import RequestResponseEndpoint
 
-from .api.routes import api_router
-from .config import Settings, get_settings
-from .infrastructure.mlflow_loader import load_predictor
+# Diagnóstico: habilita `kill -USR1 <pid>` para despejar tracebacks de todas
+# as threads. Útil para debugar travas no startup (ex.: chamadas bloqueantes
+# de MLflow/urllib3 dentro do lifespan).
+faulthandler.enable()
+if hasattr(signal, "SIGUSR1"):  # pragma: no cover - POSIX-only branch (no SIGUSR1 on Windows)
+    faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
+
+from .api.routes import api_router  # noqa: E402 — imported after faulthandler setup by design
+from .config import Settings, get_settings  # noqa: E402
+from .infrastructure.mlflow_loader import load_predictor  # noqa: E402
 
 API_DESCRIPTION = """
-API REST de **previsão de churn** para clientes Telco, servindo o modelo
-MLP final (PyTorch) registrado no MLflow do DagsHub.
+API REST de **previsão de churn** para clientes Telco. Serve, por padrão, a
+**Logistic Regression (sklearn)** registrada no MLflow do DagsHub; o **MLP
+(PyTorch)** está disponível como alternativa A/B-testável via
+`MODEL_FLAVOR=pytorch` (ver `docs/MODEL_CARD.md` §7.1).
 
 ## Como usar
 
@@ -29,8 +41,9 @@ MLP final (PyTorch) registrado no MLflow do DagsHub.
 ## Pipeline interno
 
 `payload Telco` → validação Pydantic → encoding categórico →
-`scaler.joblib` (MLflow) → MLP (PyTorch) → sigmoid → threshold otimizado
-em curva PR → `prediction`.
+`scaler.joblib` (MLflow) → modelo carregado do Registry (sklearn
+`predict_proba` ou MLP PyTorch + sigmoid) → threshold otimizado pela
+curva de lucro de negócio → `prediction`.
 
 ## Observabilidade
 
@@ -126,7 +139,7 @@ def _build_lifespan(settings: Settings, *, load_model: bool):
                     "model.load.failed",
                     extra={"extra": {"error": str(exc), "type": type(exc).__name__}},
                 )
-                # Fail fast: process exits, orchestrator restarts.
+                # Fail fast: o processo encerra e o orquestrador reinicia.
                 raise
         yield
 
@@ -138,7 +151,7 @@ def create_app(*, load_model: bool = True) -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="FIAP MLET — Churn Prediction API",
-        summary="Previsão de churn de clientes Telco com MLP (PyTorch + MLflow).",
+        summary="Previsão de churn de clientes Telco com modelo registrado no MLflow (LogReg sklearn por padrão; MLP PyTorch alternativo).",
         description=API_DESCRIPTION,
         version="0.1.0",
         contact={

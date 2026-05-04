@@ -1,4 +1,4 @@
-"""Testes unitários de ``load_predictor`` — só wiring; o MLflow é totalmente mockado.
+"""Testes unitários de ``load_predictor``; cobrem só o wiring, com MLflow totalmente mockado.
 
 Os testes de integração reais ficam em
 ``tests/integration/test_mlflow_loader.py`` e exigem credenciais DagsHub.

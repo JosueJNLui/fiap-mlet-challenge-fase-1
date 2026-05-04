@@ -395,8 +395,8 @@ def test_unknown_endpoint_returns_404(httpie_bin: str, base_url: str) -> None:
 
 @pytest.mark.xfail(
     reason=(
-        "PredictRequest currently ignores unknown JSON fields. Consider "
-        "ConfigDict(extra='forbid') to reject misspelled or unsupported params."
+        "PredictRequest atualmente ignora campos JSON desconhecidos. Avaliar "
+        "ConfigDict(extra='forbid') para rejeitar parâmetros mal grafados ou não suportados."
     ),
     strict=True,
 )

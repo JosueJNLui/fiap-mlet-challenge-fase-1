@@ -12,7 +12,7 @@ Dois caminhos coexistem, controlados por ``settings.model_flavor``:
 
 A escolha do flavor + versão acontece via variáveis de ambiente
 (``MODEL_FLAVOR`` / ``MODEL_NAME`` / ``MODEL_VERSION`` /
-``PREDICTION_THRESHOLD``) — alterná-las troca o caminho sem deploy de
+``PREDICTION_THRESHOLD``), alterná-las troca o caminho sem deploy de
 código (ver ``.env.example``).
 """
 

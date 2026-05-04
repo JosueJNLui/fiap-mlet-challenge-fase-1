@@ -38,8 +38,14 @@ def real_predictor() -> ChurnPredictor:
 def test_loads_real_model_from_registry(real_predictor: ChurnPredictor) -> None:
     assert real_predictor.version
     assert real_predictor.threshold > 0
-    assert real_predictor.model is not None
-    assert real_predictor.scaler is not None
+    # sklearn flavor (default) wraps the full Pipeline; pytorch flavor uses
+    # the legacy components-based path.
+    if real_predictor._pipeline is not None:
+        assert real_predictor.model is None
+        assert real_predictor.scaler is None
+    else:
+        assert real_predictor.model is not None
+        assert real_predictor.scaler is not None
 
 
 def test_real_model_predicts_known_payload(real_predictor: ChurnPredictor) -> None:

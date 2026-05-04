@@ -9,15 +9,18 @@ Previsão de churn de clientes com base no dataset Telco Customer Churn. API RES
 API estruturada em camadas (DDD enxuto):
 
 - **`src/api/`** (Interface): rotas FastAPI (`/health`, `/predict`), schemas Pydantic, dependências.
-- **`src/application/`** (Casos de uso): pré-processamento de features (replica do notebook) e `ChurnPredictor` (modelo + scaler + threshold).
-- **`src/infrastructure/`** (Integrações externas): loader que busca o modelo registrado no MLflow do DagsHub e baixa o artefato `scaler.joblib` do mesmo run.
+- **`src/application/`** (Casos de uso): `FeatureEngineer` (transformador `BaseEstimator/TransformerMixin`), `build_logreg_pipeline()` (sklearn `Pipeline` reprodutível), `ChurnPredictor` (modo Pipeline ou modo componentes), schemas pandera (`data_schemas.py`) e métricas de negócio.
+- **`src/infrastructure/`** (Integrações externas): loader que busca o modelo registrado no MLflow do DagsHub. No flavor `sklearn` (default), carrega a `sklearn.Pipeline` empacotada (FeatureEngineer + StandardScaler + LogReg) como artefato único. No flavor `pytorch`, carrega o MLP e baixa `scaler.joblib` do mesmo run.
 - **`src/main.py`** (Composição): `create_app()`, lifespan que carrega o modelo no startup (fail-fast), middleware de latência + logging JSON estruturado com `request_id` propagado.
 
 Fluxo de uma predição:
-1. Lifespan carrega o modelo (default: `Churn_LogReg_Final_Production`; alternativo: `Churn_MLP_Final_Production`) na versão pinada e `scaler.joblib` do MLflow → `app.state.predictor`.
+1. Lifespan carrega o modelo (default: `Churn_LogReg_Final_Production` Pipeline empacotada; alternativo: `Churn_MLP_Final_Production` + scaler) na versão pinada → `app.state.predictor`.
 2. Cliente faz `POST /predict` com payload Telco bruto (21 campos menos `customerID`).
 3. Pydantic valida enums e ranges (422 em caso de erro).
-4. `ChurnPredictor.predict()`: preprocessing → scaler → inferência (sklearn `predict_proba` ou tensor PyTorch + sigmoid) → threshold de negócio (default `0.2278` para LogReg; `0.20303` para o MLP alternativo, otimizado na mesma curva de lucro).
+4. `ChurnPredictor.predict()`:
+   - **sklearn (default):** `pipeline.predict_proba(payload)` — a Pipeline interna executa FeatureEngineer → StandardScaler → LogReg; nenhum preprocessing manual no caminho de inferência.
+   - **pytorch (alternativo):** `preprocess_one` → `scaler.transform` → tensor PyTorch + sigmoid.
+   - Em ambos: comparação com threshold de negócio (default `0.2278` para LogReg; `0.20303` para o MLP, otimizados na mesma curva de lucro).
 5. Resposta inclui `churn_probability`, `prediction`, `threshold`, `model_version`, `request_id`.
 
 ```mermaid
@@ -25,13 +28,14 @@ flowchart LR
     Client[Cliente]
     LB[Load Balancer]
     API[FastAPI + uvicorn]
-    Pre[preprocessing<br/>28 features]
-    Sc[StandardScaler]
-    M[Modelo sklearn|pytorch<br/>+ threshold]
+    Pipe[sklearn.Pipeline<br/>FeatureEngineer → StandardScaler → LogReg]
+    MLP[MLP PyTorch<br/>+ scaler joblib]
+    Th[threshold de negócio]
     MLflow[(MLflow / DagsHub<br/>Model Registry)]
 
     Client -->|POST /predict| LB --> API
-    API --> Pre --> Sc --> M --> API
+    API -->|flavor=sklearn| Pipe --> Th --> API
+    API -.->|flavor=pytorch| MLP --> Th
     API -->|200 churn_probability| Client
     MLflow -.->|startup load| API
 ```
@@ -223,8 +227,10 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 │   ├── main.py                # create_app() + lifespan + middleware
 │   ├── config.py              # Settings (pydantic-settings)
 │   ├── api/                   # schemas, routes, dependencies
-│   ├── application/           # preprocessing, ChurnPredictor, business_metrics
-│   └── infrastructure/        # mlflow_loader (DagsHub)
+│   ├── application/           # preprocessing, transformers (FeatureEngineer),
+│   │                          # pipeline (build_logreg_pipeline), data_schemas (pandera),
+│   │                          # ChurnPredictor, business_metrics
+│   └── infrastructure/        # mlflow_loader (DagsHub) — Pipeline (sklearn) ou modelo+scaler (pytorch)
 ├── tests/
 │   ├── test_health_endpoint.py
 │   ├── test_predict_endpoint.py
@@ -252,7 +258,7 @@ Diretrizes detalhadas em [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) (D
 |---|---|---|
 | **1.** EDA, qualidade, baselines (Dummy, LogReg), métrica técnica + de negócio, MLflow | Notebook de EDA + baselines registrados no MLflow | [`notebooks/eda.ipynb`](notebooks/eda.ipynb) (experimento `Churn-Predict-Telco-Etapa1-EDA`) |
 | **2.** MLP em PyTorch + ensembles, comparação ≥4 métricas, trade-off FP×FN, MLflow | Tabela comparativa + MLP + artefatos | [`notebooks/modeling.ipynb`](notebooks/modeling.ipynb) e [`notebooks/models-comparison.ipynb`](notebooks/models-comparison.ipynb) (experimento `Churn-Predict-Telco-Etapa2-Modelagem`) |
-| **3.** Refatoração modular, pipeline reprodutível, testes (pytest/pandera/smoke), API FastAPI, logging + middleware, Makefile/ruff | Repositório refatorado + API funcional + testes | [`src/`](src/), [`tests/`](tests/), [`Makefile`](Makefile), [`pyproject.toml`](pyproject.toml) |
+| **3.** Refatoração modular, pipeline reprodutível (`sklearn.Pipeline` + `FeatureEngineer` custom), testes (pytest unitários + pandera schemas + smoke E2E), API FastAPI, logging + middleware, Makefile/ruff | Repositório refatorado + API funcional + testes | [`src/application/transformers.py`](src/application/transformers.py), [`src/application/pipeline.py`](src/application/pipeline.py), [`src/application/data_schemas.py`](src/application/data_schemas.py), [`tests/`](tests/), [`Makefile`](Makefile), [`pyproject.toml`](pyproject.toml) |
 | **4.** Model Card, arquitetura de deploy, plano de monitoramento, README final | Documentação completa | [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md), [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md), [`docs/MONITORING.md`](docs/MONITORING.md), [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), este README |
 
 ## Sobre o projeto

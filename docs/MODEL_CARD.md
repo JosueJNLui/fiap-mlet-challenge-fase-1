@@ -7,8 +7,8 @@
 | Campo | Valor |
 |---|---|
 | **Nome** | `Churn_LogReg_Final_Production` |
-| **Versão em produção** | `2` (MLflow Model Registry — DagsHub), alias `@production` |
-| **Algoritmo servido** | Logistic Regression (sklearn) — empacotado com `StandardScaler` (sklearn) e threshold de negócio |
+| **Versão em produção** | última versão registrada (alias `@production`); a partir da Etapa 3 o artefato é uma `sklearn.Pipeline` empacotada |
+| **Algoritmo servido** | Logistic Regression (sklearn) servida como `sklearn.Pipeline(FeatureEngineer → StandardScaler → LogReg)` empacotada num único artefato MLflow + threshold de negócio |
 | **Modelo alternativo (A/B-testável)** | MLP (PyTorch) — registrado como `Churn_MLP_Final_Production` v8; selecionável via `MODEL_FLAVOR=pytorch` no `.env` (ver §7.1) |
 | **Data de treino** | Q1/2026 |
 | **Owner / responsável** | Equipe FIAP MLET — Fase 1 |
@@ -96,7 +96,7 @@ Comparação registrada em `notebooks/eda.ipynb`:
 
 ## 4. Pré-processamento e Features
 
-Pipeline reprodutível em `src/application/preprocessing.py` (espelha o notebook):
+A engenharia de features vive em `src/application/transformers.py::FeatureEngineer` (`BaseEstimator` + `TransformerMixin`) e é orquestrada pelo `sklearn.Pipeline` montado em `src/application/pipeline.py::build_logreg_pipeline`. O fluxo, aplicado por `FeatureEngineer.transform`:
 
 1. Encoding binário (Yes/No → 1/0) em 11 colunas.
 2. `InternetService`: DSL/Fiber → 1, No → 0.
@@ -108,7 +108,16 @@ Pipeline reprodutível em `src/application/preprocessing.py` (espelha o notebook
    - `num_services` (soma dos 9 serviços contratados).
 5. One-hot encoding manual: `gender`, `Contract`, `PaymentMethod`, `tenure_bucket`.
 6. `reindex` para `EXPECTED_FEATURE_ORDER` (28 features fixas) — **single source of truth** entre treino e produção.
-7. `StandardScaler` (sklearn) carregado como artefato MLflow do mesmo run do modelo.
+7. `StandardScaler` é o segundo step da Pipeline; ajustado no fit do bundle e serializado dentro do mesmo artefato sklearn (não há mais download separado de `scaler.joblib` no flavor sklearn).
+
+### Validação de schema (pandera)
+
+`src/application/data_schemas.py` define dois `DataFrameSchema`:
+
+- `RAW_TELCO_SCHEMA` — 21 colunas do CSV bruto, com tipos, vocabulários e ranges. Usado em `notebooks/eda.ipynb` como passo formal de *data readiness*.
+- `PROCESSED_FEATURES_SCHEMA` — 28 colunas float em ordem fixa, validando a saída de `preprocess_one`/`FeatureEngineer.transform`. Usado em testes (`tests/application/test_data_schemas.py`).
+
+Os schemas não são chamados no hot-path da API (overhead desnecessário em payloads de 1 linha), mas firmam o contrato testado entre treino e inferência.
 
 ---
 
@@ -189,7 +198,8 @@ Insights de `notebooks/eda.ipynb` (análise bivariada com Mann-Whitney p<0.05 na
 | **Drift de produto** (lançamento de novo plano) | Distribuição de `Contract`, `MonthlyCharges` fora do treino | Retreino; até lá, monitorar drift via KS test (ver `MONITORING.md`) |
 | **Drift sazonal** (campanhas de Black Friday, fim de ano) | Pico de assinaturas Month-to-month e churn aumenta | Avaliar ROC-AUC mensal em amostra rotulada; reconfigurar threshold se necessário |
 | **Mudança de público-alvo** (ex.: passar a vender B2B) | Modelo prediz churn alto consistentemente | Não usar — o modelo não foi treinado para B2B |
-| **Falha no carregamento do scaler** | Predições com features não escaladas → scores degenerados | Lifespan fail-fast no startup; CI testa `load_predictor` (`tests/integration/`) |
+| **Falha no carregamento do modelo** (sklearn) | Pipeline não desserializa (versão de sklearn incompatível, classe `FeatureEngineer` ausente, etc.) | Lifespan fail-fast no startup; CI testa `load_predictor` mockado (`tests/infrastructure/`) e real (`tests/integration/`) |
+| **Falha no carregamento do scaler** (apenas pytorch) | MLP usa scaler salvo como `joblib` em `model_components/`. Se download do artefato falha, predições degeneram | Lifespan fail-fast; o flavor sklearn é imune (Pipeline empacotada) |
 | **Indisponibilidade do MLflow / DagsHub** | API falha ao subir | `MODEL_VERSION` pinado em env permite rollback determinístico; cache local opcional |
 | **Necessidade de A/B test ou rollback do flavor** | Performance da LogReg degrada em segmento específico, ou queremos comparar com MLP | Trocar `MODEL_FLAVOR` / `MODEL_NAME` / `MODEL_VERSION` / `PREDICTION_THRESHOLD` no `.env` e reiniciar — sem deploy de código (ver §7.1) |
 | **Payload mal-formado** | Erro 422 (Pydantic) | Validação automática antes de qualquer inferência |
@@ -198,7 +208,7 @@ Insights de `notebooks/eda.ipynb` (análise bivariada com Mann-Whitney p<0.05 na
 
 A API mantém **dois caminhos de inferência** (sklearn LogReg e PyTorch MLP) selecionáveis via `settings.model_flavor`. A LogReg é o default por parsimônia + equivalência estatística com o MLP (Nemenyi p≈0.997, ver §5). O MLP fica versionado como alternativa A/B-testável, útil em três cenários: (i) comparação prospectiva de performance em produção, (ii) rollback rápido se a LogReg degradar em algum segmento, (iii) análises pontuais que se beneficiem da capacidade não-linear.
 
-**Receita de troca** (sem deploy de código): editar o `.env` para o bloco "Fallback A/B-testável: MLP (PyTorch)" descrito em [`.env.example`](../.env.example) e reiniciar a API. Os invariantes que **não** mudam: pipeline de pré-processamento, ordem das 28 features (`EXPECTED_FEATURE_ORDER`), e o caminho do scaler (`model_components/scaler.joblib`) — ambos os runs gravam o `StandardScaler` no mesmo path. O carregamento é dispatchado em [`src/infrastructure/mlflow_loader.py`](../src/infrastructure/mlflow_loader.py).
+**Receita de troca** (sem deploy de código): editar o `.env` para o bloco "Fallback A/B-testável: MLP (PyTorch)" descrito em [`.env.example`](../.env.example) e reiniciar a API. Os invariantes que **não** mudam: lógica de feature engineering (`FeatureEngineer.transform` aplicada em ambos os caminhos), ordem das 28 features (`EXPECTED_FEATURE_ORDER`) e threshold otimizado por curva de lucro. O que muda por flavor: no sklearn, o `StandardScaler` vive dentro da `sklearn.Pipeline` (artefato único); no pytorch, ele é baixado separadamente de `model_components/scaler.joblib`. O carregamento é dispatchado em [`src/infrastructure/mlflow_loader.py`](../src/infrastructure/mlflow_loader.py).
 
 ---
 
@@ -210,6 +220,7 @@ A API mantém **dois caminhos de inferência** (sklearn LogReg e PyTorch MLP) se
 - **Sem análise formal de fairness por subgrupo** (gênero, faixa etária, etnia — esta última ausente do dataset).
 - **Threshold único global.** Não há thresholds segmentados por subgrupo, o que pode gerar desbalanço operacional (ex.: 90% do "high-risk pool" sendo Month-to-month).
 - **Sem mecanismo de feedback loop** para o resultado real da retenção (cliente realmente saiu?), o que limita o monitoramento de negócio (ver `MONITORING.md`).
+- **Assimetria de empacotamento entre flavors.** A LogReg de produção é servida como `sklearn.Pipeline` empacotada (1 artefato). O MLP A/B-testável continua como modelo PyTorch + `scaler.joblib` separado (2 artefatos), porque `torch.nn.Module` não cabe nativamente em `sklearn.Pipeline`. Aceito por escopo — adaptar via `skorch` ou wrapper custom é uma evolução futura.
 
 ---
 

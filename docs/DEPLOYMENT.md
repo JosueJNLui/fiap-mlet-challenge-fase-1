@@ -282,16 +282,20 @@ mantendo a imagem Docker imutável.
 
 ```mermaid
 flowchart LR
+    Client[Cliente]
+    Prom[Prometheus<br/>scrape]
     Probe[/GET /health/]
     Predict[/POST /predict/]
-    Middleware[Middleware FastAPI<br/>request_id + X-Process-Time]
+    Metrics[/GET /metrics/]
+    Middleware[Middleware FastAPI<br/>request_id + X-Process-Time<br/>+ Counter/Histogram in-memory]
     Logs[Logs JSON stdout]
     Collector{Collector}
     Loki[Loki / ELK<br/>Kubernetes]
     CloudWatch[CloudWatch Logs<br/>ECS]
 
-    Probe --> Middleware
-    Predict --> Middleware
+    Client --> Probe --> Middleware
+    Client --> Predict --> Middleware
+    Prom --> Metrics --> Middleware
     Middleware --> Logs --> Collector
     Collector --> Loki
     Collector --> CloudWatch
@@ -304,6 +308,10 @@ Controles operacionais importantes:
 - `X-Request-ID` pode ser enviado pelo cliente e é propagado na resposta e nos
   logs.
 - `X-Process-Time` permite agregar latência sem instrumentação adicional.
+- `/metrics` expõe Counter (`fiap_mlet_http_requests_total`) e Histogram
+  (`fiap_mlet_http_request_duration_seconds`) em formato Prometheus. Configure
+  ServiceMonitor (Kubernetes/Prometheus Operator) ou `scrape_configs` (Prometheus
+  standalone/ECS) apontando para `:8000/metrics`.
 - Logs estruturados em stdout funcionam tanto no Kubernetes quanto no ECS.
 - Rollback de modelo deve ser feito alterando `MODEL_VERSION` e redeployando.
 
@@ -315,6 +323,10 @@ Controles operacionais importantes:
   autenticação.
 - Confirmar que `/health` fica `200` após o startup.
 - Validar `POST /predict` com um payload realista antes de expor para clientes.
+- Habilitar scrape de `/metrics` no Prometheus (ServiceMonitor ou
+  `scrape_configs`) e confirmar que `histogram_quantile(0.95,
+  rate(fiap_mlet_http_request_duration_seconds_bucket[5m]))` retorna valores
+  válidos.
 - Monitorar latência p95/p99, taxa de 5xx, reinícios de container e falhas de
   carregamento do modelo.
 - Ter uma versão anterior do modelo conhecida para rollback rápido.

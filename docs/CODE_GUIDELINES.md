@@ -39,6 +39,7 @@ Sempre que criar uma feature, os seguintes testes são obrigatórios:
 ### Observabilidade & Middleware
 - **Middleware de Latência:** Implementar log de `X-Process-Time` em todos os requests.
 - **Logging Estruturado:** Logs em formato JSON contendo `correlation_id`, `level`, `timestamp` e `message`.
+- **Métricas Prometheus:** O middleware também alimenta um `Counter` e um `Histogram` (`prometheus-client`), expostos em `GET /metrics`. Padrão de nomes: prefixo `fiap_mlet_`, labels `method/path/status_code`. Reaproveitar a medição já existente do middleware em vez de instrumentação por endpoint.
 
 ## 📦 4. Fluxo de Gerenciamento (Poetry + uv)
 Ao adicionar ou atualizar o projeto:

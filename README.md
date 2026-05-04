@@ -11,7 +11,7 @@ API estruturada em camadas (DDD enxuto):
 - **`src/api/`** (Interface): rotas FastAPI (`/health`, `/predict`), schemas Pydantic, dependências.
 - **`src/application/`** (Casos de uso): `FeatureEngineer` (transformador `BaseEstimator/TransformerMixin`), `build_logreg_pipeline()` (sklearn `Pipeline` reprodutível), `ChurnPredictor` (modo Pipeline ou modo componentes), schemas pandera (`data_schemas.py`) e métricas de negócio.
 - **`src/infrastructure/`** (Integrações externas): loader que busca o modelo registrado no MLflow do DagsHub. No flavor `sklearn` (default), carrega a `sklearn.Pipeline` empacotada (FeatureEngineer + StandardScaler + LogReg) como artefato único. No flavor `pytorch`, carrega o MLP e baixa `scaler.joblib` do mesmo run.
-- **`src/main.py`** (Composição): `create_app()`, lifespan que carrega o modelo no startup (fail-fast), middleware de latência + logging JSON estruturado com `request_id` propagado.
+- **`src/main.py`** (Composição): `create_app()`, lifespan que carrega o modelo no startup (fail-fast), middleware de latência + logging JSON estruturado com `request_id` propagado, métricas Prometheus expostas em `/metrics`.
 
 Fluxo de uma predição:
 1. Lifespan carrega o modelo (default: `Churn_LogReg_Final_Production` Pipeline empacotada; alternativo: `Churn_MLP_Final_Production` + scaler) na versão pinada → `app.state.predictor`.
@@ -70,6 +70,12 @@ Cada endpoint expõe `summary`, `description`, exemplos completos de payload e r
 
 ### `GET /health`
 Retorna `{"status":"ok","timestamp":"...Z"}` com headers `X-Process-Time` e `X-Request-ID`.
+
+### `GET /metrics`
+Expõe métricas em formato texto Prometheus para scraping operacional. Não aparece no Swagger (`include_in_schema=False`). Métricas instrumentadas pelo middleware:
+
+- `fiap_mlet_http_requests_total{method, path, status_code}` — Counter de requests processados.
+- `fiap_mlet_http_request_duration_seconds{method, path, status_code}` — Histogram para latência (use `histogram_quantile` no Prometheus para derivar p95/p99).
 
 ### `POST /predict`
 
@@ -247,6 +253,7 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 - Python 3.13, FastAPI, Pydantic v2, pydantic-settings
 - PyTorch (CPU), scikit-learn, pandas, numpy, joblib
 - MLflow-skinny client (DagsHub remoto)
+- `prometheus-client` para instrumentação do `/metrics`
 - `uv` para deps, `ruff` lint+format, `ty` type-check, `pytest` testes
 - Docker (`python:3.13-slim` + `uv`)
 

@@ -201,11 +201,10 @@ def create_app(*, load_model: bool = True) -> FastAPI:
         duration_ms = round(duration_seconds * 1000, 2)
         response.headers["X-Process-Time"] = str(duration_ms)
         response.headers["X-Request-ID"] = request_id
+        route = request.scope.get("route")
         labels = (
             request.method,
-            request.scope.get("route").path
-            if request.scope.get("route") is not None
-            else request.url.path,
+            route.path if route is not None else request.url.path,
             str(response.status_code),
         )
         HTTP_REQUESTS_TOTAL.labels(*labels).inc()

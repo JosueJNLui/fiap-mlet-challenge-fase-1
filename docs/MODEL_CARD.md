@@ -132,9 +132,10 @@ Os schemas não são chamados no hot-path da API (overhead desnecessário em pay
 | DummyClassifier (maj.) | 0.500 | 0.633 | 0.000 | 0.000 | 0.000 | 0.735 |
 | **Logistic Regression** | **0.849** | **0.672** | **0.560** | **0.960** | **0.395** | 0.600 |
 | Random Forest (100, depth=10) | 0.840 | 0.645 | 0.551 | 0.955 | 0.387 | 0.587 |
-| MLP (campeão grid search) | 0.849 | – | 0.550 | 0.949 | 0.391 | 0.591 |
+| XGBoost | 0.838 | 0.648 | 0.552 | 0.952 | 0.388 | 0.589 |
+| MLP (campeão grid search) | 0.849 | – | 0.550 | 0.949 | 0.387 | 0.588 |
 
-> **Nota sobre Accuracy:** os valores baixos (0.59 a 0.60) refletem o threshold otimizado por **lucro líquido** (~0.21), não por F1. Como cada FN custa 5× mais que cada FP, o ponto de operação favorece recall e sacrifica accuracy. O Dummy mantém accuracy alta (0.735) porque sempre prediz a classe majoritária. A célula consolidadora de `modeling.ipynb` agrega no DataFrame final apenas Dummy, LogReg, RandomForest e XGBoost; por isso o PR-AUC do MLP aparece como `–` aqui. Os PR-AUC do MLP por fold ficam disponíveis nos runs MLflow individuais (experimento `Churn-Predict-Telco-Etapa2-Modelagem`).
+> **Nota sobre Accuracy:** os valores baixos (0.59 a 0.60) refletem o threshold otimizado por **lucro líquido** (~0.21), não por F1. Como cada FN custa 5× mais que cada FP, o ponto de operação favorece recall e sacrifica accuracy. O Dummy mantém accuracy alta (0.735) porque sempre prediz a classe majoritária. A célula consolidadora de `modeling.ipynb` que alimenta esta tabela agrega no DataFrame final Dummy, LogReg, RandomForest e XGBoost com PR-AUC; o MLP entra na mesma tabela pelo run `MLP_GridSearch_KFold` mas sem coluna PR-AUC consolidada, por isso aparece como `–` aqui. Os PR-AUC do MLP por fold ficam disponíveis nos runs MLflow individuais (experimento `Churn-Predict-Telco-Etapa2-Modelagem`).
 
 ### Métrica de negócio: Lucro Líquido (BRL)
 
@@ -152,6 +153,7 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
 | DummyClassifier | - | **−R$ 187.000** | - | R$ 187.000 |
 | **Logistic Regression** | R$ 33.120 | **R$ 81.200** | R$ 54.900 | R$ 7.500 |
 | Random Forest | R$ 32.340 | R$ 77.800 | R$ 56.500 | R$ 8.500 |
+| XGBoost | R$ 32.360 | R$ 77.300 | R$ 56.100 | R$ 9.000 |
 | MLP (top-1) | R$ 32.980 | R$ 76.300 | R$ 56.200 | R$ 9.500 |
 
 ### Threshold de decisão (otimizado para negócio)

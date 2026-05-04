@@ -23,7 +23,7 @@
 
 - **Batch diário pré-computado:** descartado, staleness inaceitável quando cliente acabou de mudar de plano ou abrir ticket.
 - **Streaming (Kafka + Flink/Faust):** descartado, overhead injustificado para o volume esperado e o caso de uso. Reabrir se chegarmos a >5k req/s sustentados.
-- **Serverless (AWS Lambda / Cloud Functions):** descartável, mas o cold start (download do modelo via MLflow + carga em memória) é proibitivo para SLA de 200ms — adicional de ~1-3s por invocação fria, ainda mais alto se o flavor alternativo `pytorch` estiver ativo (importa `torch`). Container com modelo já carregado em memória vence.
+- **Serverless (AWS Lambda / Cloud Functions):** descartável, mas o cold start (download do modelo via MLflow + carga em memória) é proibitivo para SLA de 200ms. O adicional fica em ~1-3s por invocação fria, e cresce se o flavor alternativo `pytorch` estiver ativo (importa `torch`). Container com modelo já carregado em memória vence.
 
 ---
 

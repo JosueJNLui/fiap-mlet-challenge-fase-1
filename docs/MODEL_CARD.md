@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | **Nome** | `Churn_LogReg_Final_Production` |
-| **Versão em produção** | `1` (MLflow Model Registry — DagsHub), alias `@production` |
+| **Versão em produção** | `2` (MLflow Model Registry — DagsHub), alias `@production` |
 | **Algoritmo servido** | Logistic Regression (sklearn) — empacotado com `StandardScaler` (sklearn) e threshold de negócio |
 | **Modelo alternativo (A/B-testável)** | MLP (PyTorch) — registrado como `Churn_MLP_Final_Production` v8; selecionável via `MODEL_FLAVOR=pytorch` no `.env` (ver §7.1) |
 | **Data de treino** | Q1/2026 |
@@ -119,9 +119,9 @@ Pipeline reprodutível em `src/application/preprocessing.py` (espelha o notebook
 | Modelo | ROC-AUC | PR-AUC | F1 (churn) | Recall | Precision | Accuracy |
 |---|---|---|---|---|---|---|
 | DummyClassifier (maj.) | 0.500 | — | 0.000 | 0.00 | 0.00 | 0.73 |
-| **Logistic Regression** | **0.849** | **0.672** | **0.560** | **0.96** | **0.40** | 0.74 |
+| **Logistic Regression** | **0.849** | **0.670** | **0.560** | **0.96** | **0.40** | 0.74 |
 | Random Forest (100, depth=10) | 0.841 | 0.645 | 0.551 | 0.95 | 0.40 | 0.74 |
-| MLP (top-1 grid search) | 0.847 | 0.673 | 0.541 | 0.97 | 0.39 | 0.73 |
+| MLP (top-1 grid search) | 0.847 | 0.673 | 0.541 | 0.96 | 0.39 | 0.73 |
 
 ### Métrica de negócio: Lucro Líquido (BRL)
 
@@ -139,7 +139,7 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
 | DummyClassifier | — | **−R$ 187.000** | — | R$ 187.000 |
 | **Logistic Regression** | R$ 33.120 | **R$ 81.200** | R$ 54.900 | R$ 7.500 |
 | Random Forest | R$ 32.340 | R$ 77.800 | — | — |
-| MLP (top-1) | R$ 33.120 | R$ 79.700 | R$ 60.900 | R$ 5.000 |
+| MLP (top-1) | R$ 33.120 | R$ 79.100 | R$ 55.200 | R$ 8.500 |
 
 ### Threshold de decisão (otimizado para negócio)
 
@@ -153,6 +153,8 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
 - **Friedman global:** p-value = `1.6e-04` → diferenças entre os 4+ modelos são significativas.
 - **Post-hoc Nemenyi:** Logistic Regression ≈ MLP (top-1), p = `0.997` → **estatisticamente equivalentes**.
 - **Decisão:** servir Logistic Regression (parsimônia, interpretabilidade), com MLP versionado como alternativa A/B-testável (ver §7.1).
+
+> **Fonte dos números desta seção:** os resultados de Dummy/LogReg vêm das células finais de [`notebooks/eda.ipynb`](../notebooks/eda.ipynb); os de MLP/RandomForest/XGBoost de [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) e [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb). Em caso de divergência, **os notebooks são autoritativos** — este Model Card replica os valores publicados.
 
 ---
 

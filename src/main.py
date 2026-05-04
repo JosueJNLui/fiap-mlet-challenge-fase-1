@@ -25,8 +25,10 @@ from .config import Settings, get_settings  # noqa: E402
 from .infrastructure.mlflow_loader import load_predictor  # noqa: E402
 
 API_DESCRIPTION = """
-API REST de **previsão de churn** para clientes Telco, servindo o modelo
-MLP final (PyTorch) registrado no MLflow do DagsHub.
+API REST de **previsão de churn** para clientes Telco. Serve, por padrão, a
+**Logistic Regression (sklearn)** registrada no MLflow do DagsHub; o **MLP
+(PyTorch)** está disponível como alternativa A/B-testável via
+`MODEL_FLAVOR=pytorch` (ver `docs/MODEL_CARD.md` §7.1).
 
 ## Como usar
 
@@ -38,8 +40,9 @@ MLP final (PyTorch) registrado no MLflow do DagsHub.
 ## Pipeline interno
 
 `payload Telco` → validação Pydantic → encoding categórico →
-`scaler.joblib` (MLflow) → MLP (PyTorch) → sigmoid → threshold otimizado
-em curva PR → `prediction`.
+`scaler.joblib` (MLflow) → modelo carregado do Registry (sklearn
+`predict_proba` ou MLP PyTorch + sigmoid) → threshold otimizado pela
+curva de lucro de negócio → `prediction`.
 
 ## Observabilidade
 
@@ -147,7 +150,7 @@ def create_app(*, load_model: bool = True) -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="FIAP MLET — Churn Prediction API",
-        summary="Previsão de churn de clientes Telco com MLP (PyTorch + MLflow).",
+        summary="Previsão de churn de clientes Telco com modelo registrado no MLflow (LogReg sklearn por padrão; MLP PyTorch alternativo).",
         description=API_DESCRIPTION,
         version="0.1.0",
         contact={

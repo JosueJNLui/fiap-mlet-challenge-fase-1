@@ -2,7 +2,7 @@
 
 [![Codecov](https://codecov.io/gh/JosueJNLui/fiap-mlet-challenge-fase-1/graph/badge.svg)](https://app.codecov.io/gh/JosueJNLui/fiap-mlet-challenge-fase-1)
 
-Previsão de churn de clientes com base no dataset Telco Customer Churn. API REST em FastAPI servindo o modelo MLP final (PyTorch) registrado no MLflow do DagsHub.
+Previsão de churn de clientes com base no dataset Telco Customer Churn. API REST em FastAPI servindo, por padrão, a **Logistic Regression (sklearn)** registrada no MLflow do DagsHub. O **MLP (PyTorch)** fica versionado como alternativa A/B-testável, selecionável via `MODEL_FLAVOR=pytorch` no `.env` (ver [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) §7.1).
 
 ## Arquitetura do sistema
 
@@ -14,10 +14,10 @@ API estruturada em camadas (DDD enxuto):
 - **`src/main.py`** (Composição): `create_app()`, lifespan que carrega o modelo no startup (fail-fast), middleware de latência + logging JSON estruturado com `request_id` propagado.
 
 Fluxo de uma predição:
-1. Lifespan carrega `Churn_MLP_Final_Production` (versão pinada) e `scaler.joblib` do MLflow → `app.state.predictor`.
+1. Lifespan carrega o modelo (default: `Churn_LogReg_Final_Production`; alternativo: `Churn_MLP_Final_Production`) na versão pinada e `scaler.joblib` do MLflow → `app.state.predictor`.
 2. Cliente faz `POST /predict` com payload Telco bruto (21 campos menos `customerID`).
 3. Pydantic valida enums e ranges (422 em caso de erro).
-4. `ChurnPredictor.predict()`: preprocessing → scaler → tensor PyTorch → sigmoid → threshold (0.20303, otimizado em curva PR de negócio).
+4. `ChurnPredictor.predict()`: preprocessing → scaler → inferência (sklearn `predict_proba` ou tensor PyTorch + sigmoid) → threshold de negócio (default `0.2278` para LogReg; `0.20303` para o MLP alternativo, otimizado na mesma curva de lucro).
 5. Resposta inclui `churn_probability`, `prediction`, `threshold`, `model_version`, `request_id`.
 
 ```mermaid
@@ -27,7 +27,7 @@ flowchart LR
     API[FastAPI + uvicorn]
     Pre[preprocessing<br/>28 features]
     Sc[StandardScaler]
-    M[MLP PyTorch<br/>+ threshold]
+    M[Modelo sklearn|pytorch<br/>+ threshold]
     MLflow[(MLflow / DagsHub<br/>Model Registry)]
 
     Client -->|POST /predict| LB --> API
@@ -103,9 +103,9 @@ Resposta (200):
 ```json
 {
   "churn_probability": 0.42,
-  "prediction": false,
-  "threshold": 0.20303030303030303,
-  "model_version": "8",
+  "prediction": true,
+  "threshold": 0.2278,
+  "model_version": "2",
   "request_id": "9f4a..."
 }
 ```
@@ -143,12 +143,17 @@ Variáveis disponíveis:
 | `MLFLOW_TRACKING_USERNAME` | Seu usuário DagsHub | — (obrigatório) |
 | `MLFLOW_TRACKING_PASSWORD` | Seu token DagsHub | — (obrigatório) |
 | `MLFLOW_TRACKING_URI` | URI do MLflow no DagsHub | `https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow` |
-| `MODEL_NAME` | Nome do modelo registrado | `Churn_MLP_Final_Production` |
-| `MODEL_VERSION` | Versão pinada (recomendado) | `8` |
-| `PREDICTION_THRESHOLD` | Limiar de decisão | `0.20303030303030303` |
+| `MODEL_FLAVOR` | `sklearn` ou `pytorch` — define o caminho de inferência | `sklearn` |
+| `MODEL_NAME` | Nome do modelo registrado | `Churn_LogReg_Final_Production` |
+| `MODEL_VERSION` | Versão pinada (recomendado) | `2` |
+| `PREDICTION_THRESHOLD` | Limiar de decisão | `0.2278` |
 | `LOAD_MODEL_ON_STARTUP` | Se falso, pula carregamento (debug/dev) | `true` |
 
 Sem credenciais válidas o startup falha por design (fail-fast com 401 do DagsHub).
+
+### Modelo alternativo (A/B-testável): MLP
+
+A API mantém dois caminhos de inferência selecionáveis sem deploy de código. Para servir o MLP em vez da LogReg, troque o bloco no `.env` para o "Fallback A/B-testável" descrito em [`.env.example`](.env.example) (`MODEL_FLAVOR=pytorch`, `MODEL_NAME=Churn_MLP_Final_Production`, `MODEL_VERSION=8`, `PREDICTION_THRESHOLD=0.20303030303030303`) e reinicie a API. Justificativa, equivalência estatística e cenários de uso estão em [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) §7.1.
 
 ## Como executar
 
@@ -240,6 +245,15 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 - Docker (`python:3.13-slim` + `uv`)
 
 Diretrizes detalhadas em [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) (DDD, Clean Code, Python).
+
+## Mapa Etapas FIAP → artefatos do repo
+
+| Etapa | Entrega | Onde está |
+|---|---|---|
+| **1.** EDA, qualidade, baselines (Dummy, LogReg), métrica técnica + de negócio, MLflow | Notebook de EDA + baselines registrados no MLflow | [`notebooks/eda.ipynb`](notebooks/eda.ipynb) (experimento `Churn-Predict-Telco-Etapa1-EDA`) |
+| **2.** MLP em PyTorch + ensembles, comparação ≥4 métricas, trade-off FP×FN, MLflow | Tabela comparativa + MLP + artefatos | [`notebooks/modeling.ipynb`](notebooks/modeling.ipynb) e [`notebooks/models-comparison.ipynb`](notebooks/models-comparison.ipynb) (experimento `Churn-Predict-Telco-Etapa2-Modelagem`) |
+| **3.** Refatoração modular, pipeline reprodutível, testes (pytest/pandera/smoke), API FastAPI, logging + middleware, Makefile/ruff | Repositório refatorado + API funcional + testes | [`src/`](src/), [`tests/`](tests/), [`Makefile`](Makefile), [`pyproject.toml`](pyproject.toml) |
+| **4.** Model Card, arquitetura de deploy, plano de monitoramento, README final | Documentação completa | [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md), [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md), [`docs/MONITORING.md`](docs/MONITORING.md), [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), este README |
 
 ## Sobre o projeto
 

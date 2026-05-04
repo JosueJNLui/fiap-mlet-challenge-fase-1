@@ -2,7 +2,7 @@
 
 > Métricas, SLOs, alertas e playbook de resposta para a API de predição de churn.
 >
-> **Status atual:** este documento define o **plano**. A coleta básica (latência, request_id, logs JSON) já está implementada (`src/main.py:140-163`); a coleta de métricas de modelo e negócio depende de feedback loop ainda **não implementado** (gap conhecido, ver §6).
+> **Status atual:** este documento define o **plano**. A coleta técnica básica já está implementada — latência, `request_id`, logs JSON e **métricas Prometheus** expostas em `GET /metrics` (`src/main.py`). A coleta de métricas de modelo e negócio depende de feedback loop ainda **não implementado** (gap conhecido — ver §6).
 
 ## 1. Camadas de Monitoramento
 
@@ -44,8 +44,10 @@ flowchart TB
 | Status code, path, método | log JSON estruturado | logger `fiap-mlet-challenge-fase-1` |
 | Uptime | `GET /health` 200 | route `/health` |
 | Eventos de modelo | log JSON: `model.loaded`, `model.load.failed` | lifespan |
+| `fiap_mlet_http_requests_total{method, path, status_code}` (Counter) | `GET /metrics` (formato Prometheus) | middleware idem |
+| `fiap_mlet_http_request_duration_seconds{method, path, status_code}` (Histogram) | `GET /metrics` (formato Prometheus) | middleware idem |
 
-Logs em **stdout em JSON** já estão prontos para serem coletados por qualquer agente (Fluentd, Vector, FluentBit, CloudWatch, Loki).
+Logs em **stdout em JSON** já estão prontos para serem coletados por qualquer agente (Fluentd, Vector, FluentBit, CloudWatch, Loki). O endpoint `/metrics` é exposto via `prometheus-client` (instrumentação manual no middleware), em formato texto Prometheus, e fica fora do schema OpenAPI por ser operacional (`include_in_schema=False`).
 
 ### SLOs (alvos)
 
@@ -57,12 +59,16 @@ Logs em **stdout em JSON** já estão prontos para serem coletados por qualquer 
 | Taxa de erro 5xx | < 0.5% | rolling 24h | > 1% por 10min |
 | Pod healthy após startup | 100% | rolling 1h | qualquer CrashLoopBackOff |
 
-### Stack sugerido (não implementado ainda)
+### Stack recomendado
 
-- **Coleta:** Prometheus via `prometheus-fastapi-instrumentator` (endpoint `/metrics`).
-- **Logs:** Loki / ELK / CloudWatch parseando o JSON existente.
-- **Dashboard:** Grafana com painéis padrão FastAPI + customizações.
-- **Alertas:** Alertmanager → PagerDuty / Slack.
+- **Coleta:** ✅ implementada — `prometheus-client` instrumentando o middleware,
+  endpoint `/metrics` expõe Counter + Histogram. Falta apenas configurar o
+  scrape no Prometheus server (ServiceMonitor no Kubernetes ou `scrape_configs`
+  estático).
+- **Logs:** Loki / ELK / CloudWatch parseando o JSON existente — pendente.
+- **Dashboard:** Grafana com painéis derivados das métricas Prometheus
+  (`histogram_quantile` para latência p95/p99, `rate()` para erro 5xx) — pendente.
+- **Alertas:** Alertmanager → PagerDuty / Slack — pendente.
 
 ---
 
@@ -195,11 +201,12 @@ A camada técnica (§2) já está pronta. As demais demandam trabalho:
 
 | Fase | Escopo | Dependências |
 |---|---|---|
-| **1. Métricas técnicas (atual)** | Latência, request_id, logs JSON | ✅ implementado |
-| **2. Prometheus/Grafana** | `/metrics` endpoint + dashboards | `prometheus-fastapi-instrumentator` |
-| **3. Drift monitoring** | Job offline diário sobre logs de predição | Persistência de payloads (LGPD: anonimizar) |
-| **4. Feedback loop** | Integração CRM → DW → métricas de negócio | Acordo com time de retenção |
-| **5. Retreino automatizado** | Pipeline disparado por alerta de drift | MLflow Pipelines / Airflow / Kubeflow |
+| **1 — Métricas técnicas (atual)** | Latência, request_id, logs JSON | ✅ implementado |
+| **2a — `/metrics` Prometheus** | Counter + Histogram via `prometheus-client` no middleware | ✅ implementado |
+| **2b — Scrape + Dashboards** | Prometheus server scraping `/metrics` + dashboards Grafana + Alertmanager | ServiceMonitor (k8s) ou `scrape_configs` (ECS); Grafana provisionado |
+| **3 — Drift monitoring** | Job offline diário sobre logs de predição | Persistência de payloads (LGPD: anonimizar) |
+| **4 — Feedback loop** | Integração CRM → DW → métricas de negócio | Acordo com time de retenção |
+| **5 — Retreino automatizado** | Pipeline disparado por alerta de drift | MLflow Pipelines / Airflow / Kubeflow |
 
 ---
 

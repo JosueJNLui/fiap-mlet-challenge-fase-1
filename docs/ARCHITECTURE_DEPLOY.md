@@ -95,7 +95,7 @@ sequenceDiagram
 | Registry | MLflow + DagsHub | Versionamento de modelo + scaler como artefato no mesmo run |
 | Container | `python:3.13-slim` + `uv sync --frozen --no-dev` | ~1GB final (vs ~3.5GB defaults) |
 | Logs | JSON estruturado em stdout | Compatível com qualquer collector (ELK, Loki, CloudWatch) |
-| Observabilidade | Middleware custom: `X-Process-Time`, `X-Request-ID` | Sem dependência adicional para latência básica |
+| Observabilidade | Middleware custom (`X-Process-Time`, `X-Request-ID`) + `prometheus-client` expondo Counter/Histogram em `/metrics` | Latência básica via header e métricas operacionais via scrape Prometheus |
 
 ---
 
@@ -103,13 +103,13 @@ sequenceDiagram
 
 | Indicador | Alvo | Janela | Como medir |
 |---|---|---|---|
-| Latência p95 `/predict` | < 200ms | rolling 7d | `X-Process-Time` agregado |
-| Latência p99 `/predict` | < 500ms | rolling 7d | idem |
+| Latência p95 `/predict` | < 200ms | rolling 7d | `histogram_quantile(0.95, rate(fiap_mlet_http_request_duration_seconds_bucket{path="/predict"}[5m]))` (Prometheus) |
+| Latência p99 `/predict` | < 500ms | rolling 7d | idem com `0.99` |
 | Disponibilidade | ≥ 99.5% | mensal | uptime do `/health` |
-| Taxa de erro 5xx | < 0.5% | rolling 24h | logs JSON |
-| Taxa de erro 4xx (validação) | informacional | - | sinal de cliente mal-formado |
-| RTO (recovery time objective) | < 5 min | - | rollback de versão via env var |
-| RPO (recovery point objective) | 0 (stateless) | - | API não persiste estado |
+| Taxa de erro 5xx | < 0.5% | rolling 24h | `rate(fiap_mlet_http_requests_total{status_code=~"5.."}[5m]) / rate(fiap_mlet_http_requests_total[5m])` + logs JSON |
+| Taxa de erro 4xx (validação) | informacional | — | sinal de cliente mal-formado |
+| RTO (recovery time objective) | < 5 min | — | rollback de versão via env var |
+| RPO (recovery point objective) | 0 (stateless) | — | API não persiste estado |
 
 > Os SLOs estão dimensionados para o caso de uso atual (uso interno, dezenas a centenas de req/s). Renegociar em escala maior.
 

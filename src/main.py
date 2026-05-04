@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from starlette.middleware.base import RequestResponseEndpoint
 
 # Diagnóstico: habilita `kill -USR1 <pid>` para despejar tracebacks de todas
@@ -68,6 +69,17 @@ OPENAPI_TAGS = [
         ),
     },
 ]
+
+HTTP_REQUESTS_TOTAL = Counter(
+    "fiap_mlet_http_requests_total",
+    "Total HTTP requests processed by the churn prediction API.",
+    ("method", "path", "status_code"),
+)
+HTTP_REQUEST_DURATION_SECONDS = Histogram(
+    "fiap_mlet_http_request_duration_seconds",
+    "HTTP request latency in seconds for the churn prediction API.",
+    ("method", "path", "status_code"),
+)
 
 
 class JSONLogFormatter(logging.Formatter):
@@ -185,9 +197,19 @@ def create_app(*, load_model: bool = True) -> FastAPI:
 
         started_at = time.perf_counter()
         response = await call_next(request)
-        duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+        duration_seconds = time.perf_counter() - started_at
+        duration_ms = round(duration_seconds * 1000, 2)
         response.headers["X-Process-Time"] = str(duration_ms)
         response.headers["X-Request-ID"] = request_id
+        labels = (
+            request.method,
+            request.scope.get("route").path
+            if request.scope.get("route") is not None
+            else request.url.path,
+            str(response.status_code),
+        )
+        HTTP_REQUESTS_TOTAL.labels(*labels).inc()
+        HTTP_REQUEST_DURATION_SECONDS.labels(*labels).observe(duration_seconds)
 
         if not _is_suppressed_health_check(request):
             log_payload = {
@@ -203,6 +225,11 @@ def create_app(*, load_model: bool = True) -> FastAPI:
         return response
 
     app.include_router(api_router)
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics() -> Response:
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
     return app
 
 

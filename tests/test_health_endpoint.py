@@ -23,6 +23,17 @@ def test_health_endpoint_includes_latency_header(client: TestClient) -> None:
     assert "x-request-id" in {k.lower() for k in response.headers}
 
 
+def test_metrics_endpoint_exposes_prometheus_metrics(client: TestClient) -> None:
+    client.get("/health")
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "fiap_mlet_http_requests_total" in response.text
+    assert 'path="/health"' in response.text
+
+
 def test_configure_logging_disables_uvicorn_access_log() -> None:
     configure_logging()
 

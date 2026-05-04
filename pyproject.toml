@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# EDA, modelagem e qualidade — não vai pra imagem Docker
+# EDA, modelagem e qualidade; nao vai pra imagem Docker
 dev = [
     "ty==0.0.31",
     "pytest>=8.4.0",

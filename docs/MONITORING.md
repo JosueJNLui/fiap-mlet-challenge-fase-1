@@ -113,7 +113,7 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 
 | Métrica | Definição | Fonte |
 |---|---|---|
-| Lucro líquido acumulado | `TP × R$500 − FP × R$100 − FN × R$500` | feedback loop (CRM → DW) |
+| Lucro líquido acumulado | `TP × (LTV − Custo) − FP × Custo − FN × LTV` (LTV=R$ 500, Custo=R$ 100) | feedback loop (CRM → DW) |
 | Custo de FP mensal | nº FP × R$ 100 | idem |
 | Churn evitado | nº TP × R$ 500 (ações de retenção bem-sucedidas) | idem |
 | Cobertura de campanha | predições com label=`true` por mês | API logs |

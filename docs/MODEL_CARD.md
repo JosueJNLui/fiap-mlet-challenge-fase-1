@@ -142,7 +142,7 @@ Os schemas não são chamados no hot-path da API (overhead desnecessário em pay
 Definida em conjunto com a área:
 
 ```
-Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
+Lucro = TP × (LTV − Custo_retencao) − FP × Custo_retencao − FN × LTV
         com LTV = R$ 500 e Custo_retencao = R$ 100
 ```
 
@@ -173,6 +173,8 @@ Lucro = TP × LTV  −  FP × Custo_retencao  −  FN × LTV
 - **Decisão:** servir Logistic Regression (parsimônia, interpretabilidade), com MLP versionado como alternativa A/B-testável (ver §7.1).
 
 > **Fonte dos números desta seção:** os resultados de Dummy/LogReg vêm das células finais de [`notebooks/eda.ipynb`](../notebooks/eda.ipynb); os de MLP/RandomForest/XGBoost de [`notebooks/modeling.ipynb`](../notebooks/modeling.ipynb) e [`notebooks/models-comparison.ipynb`](../notebooks/models-comparison.ipynb). Em caso de divergência, **os notebooks são autoritativos**. Este Model Card replica os valores publicados.
+>
+> **Nota de unidade monetária:** as tabelas usam `R$` em prosa, enquanto os outputs das células dos notebooks aparecem com o código de moeda `BRL` (substituição feita por restrição de renderização do Jupyter ao caractere `$` em alguns ambientes). É a mesma unidade.
 
 ---
 

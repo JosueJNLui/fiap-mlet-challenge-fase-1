@@ -1,1 +1,19 @@
 aws_region = "us-east-1"
+
+# container_memory = 512 # Fargate min for 256 CPU; app requires >= 380 MiB.
+
+# Defaults aligned with .env.example.
+# mlflow_tracking_uri      = "https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow"
+# mlflow_tracking_username = "JosueJNLui"
+# model_flavor            = "sklearn"
+# model_name              = "Churn_LogReg_Final_Production"
+# model_version           = "3"
+# scaler_artifact_path    = "model_components/scaler.joblib"
+# prediction_threshold    = "0.2080"
+# load_model_on_startup   = true
+# docs_url                = "/docs"
+# redoc_url               = "/redoc"
+# openapi_url             = "/openapi.json"
+
+# Use a Secrets Manager or SSM Parameter ARN when the MLflow registry requires auth.
+# mlflow_tracking_password_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:dagshub-token"

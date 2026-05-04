@@ -7,7 +7,8 @@ Application Load Balancer público.
 
 - VPC simples com 2 subnets públicas e Internet Gateway.
 - ECS Cluster com `FARGATE_SPOT`.
-- ECS Service com 2 tasks `256 CPU / 512 MiB`.
+- ECS Service com 2 tasks `256 CPU / 512 MiB` (a API requer pelo menos 380 MiB;
+  512 MiB é o menor tamanho válido do Fargate para 256 CPU).
 - Application Load Balancer HTTP na porta 80.
 - CloudWatch Log Group com retenção de 7 dias.
 
@@ -24,9 +25,12 @@ export AWS_SECRET_ACCESS_KEY="..."
 export AWS_DEFAULT_REGION="us-east-1"
 ```
 
-O deploy não injeta variáveis `MLFLOW_TRACKING_*`. Para projetos públicos no
-DagsHub, a aplicação usa os defaults do `Settings` e o MLflow acessa o registry
-sem Basic Auth.
+O deploy injeta os mesmos defaults de runtime do `.env.example`, incluindo
+`MLFLOW_TRACKING_URI`, `MODEL_FLAVOR`, `MODEL_NAME`, `MODEL_VERSION`,
+`SCALER_ARTIFACT_PATH`, `PREDICTION_THRESHOLD`, `LOAD_MODEL_ON_STARTUP`,
+`DOCS_URL`, `REDOC_URL` e `OPENAPI_URL`. Para autenticação no registry, informe
+`mlflow_tracking_password_secret_arn` com o ARN de um secret/parameter contendo
+o token, evitando colocar o valor sensível no state do Terraform.
 
 ## Como aplicar
 

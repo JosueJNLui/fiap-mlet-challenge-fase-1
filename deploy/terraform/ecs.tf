@@ -45,6 +45,7 @@ resource "aws_ecs_task_definition" "app" {
       ]
 
       environment = local.container_environment
+      secrets     = local.container_secrets
 
       healthCheck = {
         command = [

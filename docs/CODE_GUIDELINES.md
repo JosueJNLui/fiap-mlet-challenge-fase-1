@@ -6,8 +6,7 @@ Este arquivo serve como a única fonte de verdade para padrões de código, arqu
 ## 🚀 1. Stack Tecnológica & Gestão
 - **Linguagem:** Python 3.13.+ (Uso intensivo de novos recursos de performance).
 - **Web Framework:** FastAPI 0.136+ (Aproveitar tipagem avançada e Pydantic v2).
-- **Gestão de Dependências:** **Poetry** (Gerenciar `pyproject.toml` e `poetry.lock`).
-- **Performance de Ambiente:** **uv** (Utilizado para `sync`, `install` e download de pacotes).
+- **Gestão de Dependências:** **uv** (Gerenciar `pyproject.toml` e `uv.lock`; usado para `sync`, `add`, `run` e download de pacotes).
 - **Type Checker:** `ty` (Apenas ele deve ser usado para verificação estática).
 - **Linter/Formatter:** `ruff` (Executar `ruff check --fix` e `ruff format`).
 
@@ -41,9 +40,9 @@ Sempre que criar uma feature, os seguintes testes são obrigatórios:
 - **Logging Estruturado:** Logs em formato JSON contendo `correlation_id`, `level`, `timestamp` e `message`.
 - **Métricas Prometheus:** O middleware também alimenta um `Counter` e um `Histogram` (`prometheus-client`), expostos em `GET /metrics`. Padrão de nomes: prefixo `fiap_mlet_`, labels `method/path/status_code`. Reaproveitar a medição já existente do middleware em vez de instrumentação por endpoint.
 
-## 📦 4. Fluxo de Gerenciamento (Poetry + uv)
+## 📦 4. Fluxo de Gerenciamento (uv)
 Ao adicionar ou atualizar o projeto:
-1.  Use virtual env. `uv venv`, para ativcar `.venv/bin/activate`.
-2.  Use `poetry add <package>` para atualizar o `pyproject.toml`.
-3.  Use o **`uv`** para sincronizar o ambiente virtual instantaneamente: `uv pip install -r <(poetry export -f requirements.txt)` ou, se preferir o workflow direto, `uv sync` (se configurado com o poetry).
-4.  **Nota:** Priorize o `uv` para qualquer operação de download e sync por ser significativamente mais rápido.
+1.  Sincronize o ambiente a partir do lockfile: `uv sync --frozen` (produção) ou `uv sync --frozen --extra dev` (com ferramentas de dev/teste).
+2.  Para adicionar uma nova dependência: `uv add <package>` (atualiza `pyproject.toml` e `uv.lock`).
+3.  Para executar comandos no ambiente: `uv run <comando>` (ex.: `uv run pytest`, `uv run uvicorn src.main:app`).
+4.  Os alvos do `Makefile` (`make install`, `make install-dev`, `make test`, `make run`) encapsulam esses comandos e devem ser preferidos no fluxo cotidiano.

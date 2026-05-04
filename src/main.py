@@ -19,10 +19,10 @@ from starlette.middleware.base import RequestResponseEndpoint
 # as threads. Útil para debugar travas no startup (ex.: chamadas bloqueantes
 # de MLflow/urllib3 dentro do lifespan).
 faulthandler.enable()
-if hasattr(signal, "SIGUSR1"):  # pragma: no cover - POSIX-only branch (no SIGUSR1 on Windows)
+if hasattr(signal, "SIGUSR1"):  # pragma: no cover - branch só em POSIX (sem SIGUSR1 no Windows)
     faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True)
 
-from .api.routes import api_router  # noqa: E402 — imported after faulthandler setup by design
+from .api.routes import api_router  # noqa: E402 - importado após o setup do faulthandler por design
 from .config import Settings, get_settings  # noqa: E402
 from .infrastructure.mlflow_loader import load_predictor  # noqa: E402
 
@@ -35,7 +35,7 @@ API REST de **previsão de churn** para clientes Telco. Serve, por padrão, a
 ## Como usar
 
 1. Faça `GET /health` para confirmar que o modelo foi carregado.
-2. Faça `POST /predict` com o payload Telco bruto — a API cuida do
+2. Faça `POST /predict` com o payload Telco bruto. A API cuida do
    pré-processamento, encoding, scaler e aplicação do threshold de negócio.
 3. Use o header `X-Request-ID` para correlacionar logs entre cliente e API.
 
@@ -162,12 +162,12 @@ def create_app(*, load_model: bool = True) -> FastAPI:
     configure_logging()
     settings = get_settings()
     app = FastAPI(
-        title="FIAP MLET — Churn Prediction API",
+        title="FIAP MLET: Churn Prediction API",
         summary="Previsão de churn de clientes Telco com modelo registrado no MLflow (LogReg sklearn por padrão; MLP PyTorch alternativo).",
         description=API_DESCRIPTION,
         version="0.1.0",
         contact={
-            "name": "FIAP MLET — Fase 1",
+            "name": "FIAP MLET, Fase 1",
             "url": "https://github.com/JosueJNLui/fiap-mlet-challenge-fase-1",
         },
         license_info={

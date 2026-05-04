@@ -13,7 +13,7 @@ from src.application.business_metrics import (
 
 @pytest.fixture
 def perfectly_separable() -> tuple[np.ndarray, np.ndarray]:
-    """y_proba ordenada por classe — threshold ótimo deve dar lucro positivo máximo."""
+    """y_proba ordenada por classe; threshold ótimo deve dar lucro positivo máximo."""
     y_true = np.array([0, 0, 0, 0, 1, 1, 1, 1])
     y_proba = np.array([0.05, 0.1, 0.15, 0.2, 0.7, 0.8, 0.9, 0.95])
     return y_true, y_proba
@@ -34,8 +34,8 @@ def test_find_optimal_threshold_favors_recall_under_asymmetric_costs() -> None:
     # Como FN custa 5x mais que FP (LTV R$500 vs custo retencao R$100), a curva
     # de lucro deve ser maximizada em um threshold relativamente baixo. Aqui, com
     # positivos concentrados em proba 0.3-0.5 e negativos em 0.0-0.4, qualquer
-    # threshold ≤ 0.5 captura praticamente todos os churns reais — o ótimo deve
-    # ser claramente abaixo do default de 0.5.
+    # threshold ≤ 0.5 captura praticamente todos os churns reais, então o ótimo
+    # deve ficar claramente abaixo do default de 0.5.
     rng = np.random.default_rng(0)
     y_true = np.concatenate([np.zeros(800, dtype=int), np.ones(200, dtype=int)])
     y_proba = np.concatenate(
@@ -83,7 +83,7 @@ def test_calculate_metrics_returns_confusion_matrix_when_requested(
 def test_calculate_metrics_dummy_majority_baseline_is_unprofitable() -> None:
     # Dataset 73/27 (proporções do Telco) com classificador majoritário
     # (sempre 0): zera TP, gera FN para todos os positivos. Lucro tem que
-    # ser negativo — sanity check do baseline da Etapa 1.
+    # ser negativo (sanity check do baseline da Etapa 1).
     y_true = np.concatenate([np.zeros(730, dtype=int), np.ones(270, dtype=int)])
     y_proba = np.zeros(1000)  # sempre prediz 0
 

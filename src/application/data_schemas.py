@@ -7,7 +7,7 @@ Dois esquemas são exportados:
   (``data/dataset/telco_customer_churn.csv``) usado em ``notebooks/eda.ipynb``.
   É chamado como passo formal de *data readiness* antes de qualquer análise.
 * ``PROCESSED_FEATURES_SCHEMA`` valida a saída de
-  :func:`src.application.preprocessing.preprocess_one` — as 28 colunas float
+  :func:`src.application.preprocessing.preprocess_one`, as 28 colunas float
   exatamente na ordem que o ``StandardScaler`` espera.
 
 Ambos os esquemas só são usados em testes e notebooks. O hot-path da API

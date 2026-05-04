@@ -48,11 +48,11 @@ class ChurnPredictor:
 
     Dois flavors compartilham esta classe:
 
-    * **Modo Pipeline** (flavor sklearn em produção) — construído via
+    * **Modo Pipeline** (flavor sklearn em produção), construído via
       :meth:`from_pipeline`. Encapsula uma ``sklearn.Pipeline`` já ajustada que
       cuida de feature engineering, scaling e classificação ponta-a-ponta. O
       payload bruto vai direto para ``pipeline.predict_proba``.
-    * **Modo componentes** (fallback MLP em PyTorch) — usa o construtor antigo
+    * **Modo componentes** (fallback MLP em PyTorch), usa o construtor antigo
       ``__init__(model, scaler, ...)``. O MLP é um ``torch.nn.Module`` que não
       cabe dentro de uma sklearn Pipeline, então pré-processamento e scaler
       permanecem externos.

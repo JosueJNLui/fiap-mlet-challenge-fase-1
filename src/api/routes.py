@@ -50,8 +50,8 @@ async def health_check() -> HealthResponse:
         "a decisão binária (aplicando o threshold otimizado) e metadados de "
         "rastreamento.\n\n"
         "**Pipeline interno**: validação Pydantic → encoding categórico → "
-        "scaler → MLP (PyTorch) → sigmoid → comparação com threshold.\n\n"
-        "Para correlacionar logs, envie o header `X-Request-ID` — ele é "
+        "scaler → modelo (sklearn LogReg ou MLP PyTorch) → comparação com threshold.\n\n"
+        "Para correlacionar logs, envie o header `X-Request-ID`. Ele é "
         "ecoado no body e nos headers da resposta."
     ),
     response_description="Probabilidade de churn e decisão aplicando o threshold.",
@@ -60,7 +60,7 @@ async def health_check() -> HealthResponse:
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": ValidationErrorResponse,
             "description": (
-                "Payload inválido — campo fora do enum, range incorreto, "
+                "Payload inválido: campo fora do enum, range incorreto, "
                 "tipo errado, etc."
             ),
         },

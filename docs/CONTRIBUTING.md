@@ -19,7 +19,7 @@ As mensagens de commit devem seguir a especificação: `<tipo>(escopo opcional):
 - `refactor`: Alteração de código que não corrige um bug nem adiciona uma funcionalidade.
 - `perf`: Alteração de código que melhora o desempenho.
 - `test`: Adição de testes ausentes ou correção de testes existentes.
-- `chore`: Atualizações de tarefas de build, configurações de pacotes (Poetry), etc.
+- `chore`: Atualizações de tarefas de build, configurações de pacotes (uv), etc.
 
 *Exemplo:* `feat(auth): add jwt middleware for latency tracking`
 

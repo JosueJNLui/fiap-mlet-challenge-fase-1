@@ -18,7 +18,7 @@ Fluxo de uma predição:
 2. Cliente faz `POST /predict` com payload Telco bruto (21 campos menos `customerID`).
 3. Pydantic valida enums e ranges (422 em caso de erro).
 4. `ChurnPredictor.predict()`:
-   - **sklearn (default):** `pipeline.predict_proba(payload)` — a Pipeline interna executa FeatureEngineer → StandardScaler → LogReg; nenhum preprocessing manual no caminho de inferência.
+   - **sklearn (default):** `pipeline.predict_proba(payload)`. A Pipeline interna executa FeatureEngineer → StandardScaler → LogReg; nenhum preprocessing manual no caminho de inferência.
    - **pytorch (alternativo):** `preprocess_one` → `scaler.transform` → tensor PyTorch + sigmoid.
    - Em ambos: comparação com threshold de negócio (default `0.2080` para LogReg; `0.20303` para o MLP, otimizados na mesma curva de lucro).
 5. Resposta inclui `churn_probability`, `prediction`, `threshold`, `model_version`, `request_id`.
@@ -41,18 +41,18 @@ flowchart LR
 ```
 
 📚 **Documentação operacional:**
-- [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) — performance, vieses, limitações, cenários de falha.
-- [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md) — decisão real-time, SLA, scaling, DR.
-- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — arquitetura prática de deploy com Helm/Kubernetes e Terraform/AWS ECS.
-- [`docs/MONITORING.md`](docs/MONITORING.md) — métricas técnicas/modelo/negócio, alertas, playbook.
-- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — fluxo TBD, Conventional Commits, SemVer.
-- [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) — diretrizes de DDD, Clean Code e stack Python.
+- [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md): performance, vieses, limitações, cenários de falha.
+- [`docs/ARCHITECTURE_DEPLOY.md`](docs/ARCHITECTURE_DEPLOY.md): decisão real-time, SLA, scaling, DR.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): arquitetura prática de deploy com Helm/Kubernetes e Terraform/AWS ECS.
+- [`docs/MONITORING.md`](docs/MONITORING.md): métricas técnicas/modelo/negócio, alertas, playbook.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md): fluxo TBD, Conventional Commits, SemVer.
+- [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md): diretrizes de DDD, Clean Code e stack Python.
 
 🧪 **Notebooks de pesquisa** (FIAP MLET Fase 1):
 - `notebooks/eda.ipynb` cobre a **Etapa 1** (EDA + baselines DummyClassifier/Logistic Regression) e escreve no experimento MLflow `Churn-Predict-Telco-Etapa1-EDA`.
 - `notebooks/modeling.ipynb` cobre a **Etapa 2** (MLP em PyTorch + ensembles, grid search, K-Fold, threshold otimizado, análise de trade-off FP×FN) e escreve em `Churn-Predict-Telco-Etapa2-Modelagem`.
 - `notebooks/models-comparison.ipynb` consulta os **dois** experimentos para a comparação cruzada.
-- Cálculos de lucro e custo de erro vivem em [`src/application/business_metrics.py`](src/application/business_metrics.py) — single source of truth compartilhada pelos três notebooks e pelo Model Card.
+- Cálculos de lucro e custo de erro vivem em [`src/application/business_metrics.py`](src/application/business_metrics.py), fonte única da verdade compartilhada pelos três notebooks e pelo Model Card.
 
 ## Documentação interativa (Swagger / OpenAPI)
 
@@ -60,8 +60,8 @@ Com a API rodando, abra um dos endpoints abaixo no browser:
 
 | URL | Descrição |
 |---|---|
-| <http://localhost:8000/docs> | Swagger UI — testar endpoints direto do browser (`Try it out`) |
-| <http://localhost:8000/redoc> | ReDoc — documentação narrativa, ideal para leitura |
+| <http://localhost:8000/docs> | Swagger UI: testar endpoints direto do browser (`Try it out`) |
+| <http://localhost:8000/redoc> | ReDoc: documentação narrativa, ideal para leitura |
 | <http://localhost:8000/openapi.json> | Spec OpenAPI 3.1 bruto, p/ gerar clientes (openapi-generator, etc.) |
 
 Cada endpoint expõe `summary`, `description`, exemplos completos de payload e respostas, e modelos documentados para os erros `422` (validação) e `503` (modelo não carregado). Em produção, defina `DOCS_URL=` (vazio) no ambiente para desabilitar a UI sem alterar código.
@@ -120,7 +120,7 @@ Resposta (200):
 }
 ```
 
-Para rastrear uma chamada específica nos logs, envie um `X-Request-ID` próprio — ele é ecoado no body e nos headers da resposta:
+Para rastrear uma chamada específica nos logs, envie um `X-Request-ID` próprio. Ele é ecoado no body e nos headers da resposta:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -133,7 +133,7 @@ Erros de validação retornam `422` (ex.: `Contract` fora dos enums permitidos, 
 
 ## Configuração
 
-A API lê variáveis de ambiente (ou `.env` local). Há um template versionado no repo — basta copiar e preencher:
+A API lê variáveis de ambiente (ou `.env` local). Há um template versionado no repo, basta copiar e preencher:
 
 ```bash
 cp .env.example .env
@@ -141,7 +141,7 @@ cp .env.example .env
 
 Depois edite `.env` e configure suas credenciais do DagsHub:
 
-- `MLFLOW_TRACKING_USERNAME`: seu usuário do DagsHub (o token só autentica como o dono dele — não use o usuário de outra pessoa).
+- `MLFLOW_TRACKING_USERNAME`: seu usuário do DagsHub (o token só autentica como o dono dele; não use o usuário de outra pessoa).
 - `MLFLOW_TRACKING_PASSWORD`: seu access token, gerado em <https://dagshub.com/user/settings/tokens>.
 
 O arquivo `.env` está no `.gitignore`, então o token não será commitado.
@@ -150,10 +150,10 @@ Variáveis disponíveis:
 
 | Variável | Descrição | Default |
 |---|---|---|
-| `MLFLOW_TRACKING_USERNAME` | Seu usuário DagsHub | — (obrigatório) |
-| `MLFLOW_TRACKING_PASSWORD` | Seu token DagsHub | — (obrigatório) |
+| `MLFLOW_TRACKING_USERNAME` | Seu usuário DagsHub | (obrigatório) |
+| `MLFLOW_TRACKING_PASSWORD` | Seu token DagsHub | (obrigatório) |
 | `MLFLOW_TRACKING_URI` | URI do MLflow no DagsHub | `https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow` |
-| `MODEL_FLAVOR` | `sklearn` ou `pytorch` — define o caminho de inferência | `sklearn` |
+| `MODEL_FLAVOR` | `sklearn` ou `pytorch`, define o caminho de inferência | `sklearn` |
 | `MODEL_NAME` | Nome do modelo registrado | `Churn_LogReg_Final_Production` |
 | `MODEL_VERSION` | Versão pinada (recomendado) | `3` |
 | `PREDICTION_THRESHOLD` | Limiar de decisão | `0.2080` |
@@ -163,7 +163,7 @@ Sem credenciais válidas o startup falha por design (fail-fast com 401 do DagsHu
 
 ### Modelo alternativo (A/B-testável): MLP
 
-A API mantém dois caminhos de inferência selecionáveis sem deploy de código. Para servir o MLP em vez da LogReg, troque o bloco no `.env` para o "Fallback A/B-testável" descrito em [`.env.example`](.env.example) (`MODEL_FLAVOR=pytorch`, `MODEL_NAME=Churn_MLP_Final_Production`, `MODEL_VERSION=8`, `PREDICTION_THRESHOLD=0.20303030303030303`) e reinicie a API. Justificativa, equivalência estatística e cenários de uso estão em [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) §7.1.
+A API mantém dois caminhos de inferência selecionáveis sem deploy de código. Para servir o MLP em vez da LogReg, troque o bloco no `.env` para o "Fallback A/B-testável" descrito em [`.env.example`](.env.example) (`MODEL_FLAVOR=pytorch`, `MODEL_NAME=Churn_MLP_Final_Production`, `MODEL_VERSION=12`, `PREDICTION_THRESHOLD=0.20303`) e reinicie a API. Justificativa, equivalência estatística e cenários de uso estão em [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) §7.1.
 
 ## Como executar
 
@@ -236,7 +236,7 @@ Se o upload falhar com `Repository not found`, o relatório foi gerado, mas o Co
 │   ├── application/           # preprocessing, transformers (FeatureEngineer),
 │   │                          # pipeline (build_logreg_pipeline), data_schemas (pandera),
 │   │                          # ChurnPredictor, business_metrics
-│   └── infrastructure/        # mlflow_loader (DagsHub) — Pipeline (sklearn) ou modelo+scaler (pytorch)
+│   └── infrastructure/        # mlflow_loader (DagsHub): Pipeline (sklearn) ou modelo+scaler (pytorch)
 ├── tests/
 │   ├── test_health_endpoint.py
 │   ├── test_predict_endpoint.py
@@ -270,38 +270,43 @@ Diretrizes detalhadas em [`docs/CODE_GUIDELINES.md`](docs/CODE_GUIDELINES.md) (D
 
 ## Conclusão
 
-### Síntese dos relatos dos notebooks
+Todos os objetivos das quatro etapas do desafio foram atendidos: fizemos a EDA, treinamos baselines, construímos o MLP em PyTorch, comparamos os modelos com método estatístico, refatoramos o código em módulos, montamos a API com testes e produzimos a documentação operacional (Model Card, plano de deploy e monitoramento). O mapeamento Etapa → artefato está na tabela da seção anterior.
 
-**Etapa 1 — EDA + baselines** ([`notebooks/eda.ipynb`](notebooks/eda.ipynb)).
-Dataset com 7.043 registros e 21 colunas, sem missings nominais (apenas 11 strings vazias em `TotalCharges` para clientes com `tenure=0`). Target desbalanceado em 73/27, com `tenure`, `MonthlyCharges` e `TotalCharges` confirmados como drivers de churn via Mann-Whitney U + Bonferroni. Multicolinearidade esperada entre `tenure` e `TotalCharges` (~0.83) tratada com `np.log1p`. A métrica de negócio adotada foi **lucro líquido** (LTV=R$500, custo de retenção=R$100), substituindo F1 pela assimetria de custos (FN custa 5× FP). Os baselines (`DummyClassifier` e `LogisticRegression(class_weight='balanced')`) já mostraram que a LogReg supera o piso por larga margem.
+### O que descobrimos em cada etapa
 
-**Etapa 2 — MLP + ensembles** ([`notebooks/modeling.ipynb`](notebooks/modeling.ipynb)).
-Comparação rigorosa entre LogReg, Random Forest, XGBoost e MLP (PyTorch) com K-Fold pareado, grid search e teste de Friedman+Nemenyi. A arquitetura do MLP foi mantida deliberadamente parsimoniosa: **uma única camada oculta** (`28 → hidden → BatchNorm → Dropout → 1`), `BCEWithLogitsLoss` com `pos_weight≈2.77` (equivalente ao `class_weight='balanced'`) e early stopping. Variantes com 2 camadas chegaram a ser exploradas e não trouxeram ganho mensurável — apenas mais parâmetros, mais tuning e maior risco de overfitting em ~5.6k amostras.
+**Etapa 1, conhecendo os dados** ([`notebooks/eda.ipynb`](notebooks/eda.ipynb)).
+O dataset tem 7.043 clientes e 21 colunas, com qualidade boa: só encontramos 11 valores vazios em `TotalCharges`, todos de clientes que ainda não pagaram a primeira fatura. A base é desbalanceada (73% ficam, 27% saem), e os principais sinais de churn são **tempo de contrato (`tenure`)**, **valor mensal** e **valor total pago**. Tanto o EDA quanto o pipeline de modelagem imputam esses 11 NaN como `MonthlyCharges × tenure` (clientes com `tenure=0` cuja primeira fatura ainda não fechou); o pipeline aplica adicionalmente `log1p` em `TotalCharges` para reduzir a assimetria da distribuição. Preservamos as 7.043 linhas, e o split estratificado 80/20 resulta em 5.634 desenvolvimento e 1.409 teste. Como errar uma previsão custa caro de forma diferente para a empresa (deixar um cliente ir embora dói mais do que oferecer um desconto desnecessário), trocamos a métrica F1 tradicional por **lucro líquido em reais**, assumindo um valor de R$500 por cliente retido e R$100 de custo da campanha de retenção. Já no baseline a Regressão Logística mostrou resultado muito acima do "chute aleatório".
 
-**Comparação cross-experimento** ([`notebooks/models-comparison.ipynb`](notebooks/models-comparison.ipynb)).
-No hold-out, a Logistic Regression liderou simultaneamente as quatro frentes (recall 0.960, precisão 0.395, menor custo de FN R$7.500 e menor custo de FP R$54.900), atingindo lucro de **R$81.200**. O MLP campeão do grid ficou em **R$79.100** (Δ R$2.100), com Random Forest e XGBoost atrás em todas as métricas relevantes. Em CV, o MLP é estatisticamente **equivalente** à LogReg (Friedman+Nemenyi, p≈0.997), reforçando que o ganho não-linear esperado simplesmente não existe nesse volume e perfil de features.
+**Etapa 2, testando modelos mais sofisticados** ([`notebooks/modeling.ipynb`](notebooks/modeling.ipynb)).
+Treinamos quatro modelos e comparamos lado a lado: Regressão Logística, Random Forest, XGBoost e uma rede neural (MLP em PyTorch). A rede foi mantida bem simples de propósito (apenas uma camada escondida), porque versões maiores não trouxeram ganho real, só aumentaram o risco de o modelo "decorar" os dados de treino em vez de aprender o padrão.
 
-### Escolha do modelo e a dificuldade de "vencer" a Logistic Regression
+**Comparação final entre os modelos** ([`notebooks/models-comparison.ipynb`](notebooks/models-comparison.ipynb)).
+A **Regressão Logística venceu em todas as frentes**: maior recall (acerta 96% dos clientes que vão sair), menor custo de erro e o maior lucro líquido (**R$ 81.200**). A rede neural ficou em R$ 76.300, atrás por R$ 4.900, mas o teste estatístico mostrou que as duas são equivalentes em validação cruzada. Random Forest e XGBoost ficaram atrás em todas as métricas que importam para o negócio.
 
-A decisão final foi promover a **Logistic Regression** como modelo de produção, sustentada por três pilares: (1) **financeiro** — maior lucro líquido absoluto; (2) **eficiência** — melhor controle de FP, evitando desperdício de verba de retenção; (3) **auditabilidade** — interpretabilidade direta dos coeficientes para as áreas de negócio. O MLP fica versionado como alternativa A/B-testável (`MODEL_FLAVOR=pytorch`) por ser estatisticamente equivalente — útil se o perfil dos dados mudar e justificar reavaliação, mas sem custo operacional adicional hoje.
+### Por que escolhemos a Regressão Logística
 
-A "dificuldade" em vencer a LogReg não é acidente: o sinal de churn no Telco é predominantemente **linear nas features pós-engenharia** (`Contract`, `tenure`, `InternetService`, `PaymentMethod` dominam), o `class_weight='balanced'` já calibra o desbalanceamento sem reamostragem, e a otimização de threshold por curva de lucro (não 0.5) extrai o ótimo operacional do modelo linear. Nesse regime, capacidade adicional vira variância, não viés removido — o que explica o resultado de Friedman e a opção pelo MLP **mais simples possível** (8 dims, 1 camada oculta) na fase de comparação.
+Promovemos a **Regressão Logística como modelo de produção** por três motivos práticos:
 
-### Conclusão geral do desafio
+1. **Dá mais lucro** no cenário simulado.
+2. **Erra menos para "mais"**: evita gastar verba de retenção com clientes que não iam sair mesmo.
+3. **É fácil de explicar** para a área de negócio: dá para olhar os pesos do modelo e entender o que está pesando na decisão.
 
-O desafio cobriu o ciclo end-to-end de um projeto de ML: formulação do problema com métrica de negócio explícita, EDA com validação estatística, baselines honestos, modelo "avançado" com PyTorch, refatoração para `sklearn.Pipeline` com transformador custom (`FeatureEngineer`), validação de schemas com pandera, API FastAPI com logging estruturado e middleware de latência, testes hermeticos + E2E com HTTPie, containerização e documentação operacional (Model Card, arquitetura de deploy, plano de monitoramento). O mapeamento Etapa→artefato fica explícito na tabela acima.
+A rede neural ficou guardada como **alternativa pronta para usar** caso o perfil dos clientes mude no futuro. Basta trocar uma variável de ambiente para servir ela em vez da Regressão Logística, sem mexer no código.
 
-**Aprendizados com a stack:**
-- **MLflow + DagsHub** funciona bem como Model Registry remoto sem infra própria, mas exige disciplina de pinagem (`MODEL_VERSION` fixo, alias `@production`) para evitar drift silencioso entre treino e serving.
-- **`sklearn.Pipeline` empacotada** (FeatureEngineer → StandardScaler → LogReg) elimina toda a classe de bug de "preprocessing diferente em treino e inferência" — o caminho de servir vira `pipeline.predict_proba(payload)`, sem etapas manuais.
-- **PyTorch para tabular** é viável e didático, mas em datasets pequenos com sinal linear o ROI sobre `sklearn` é baixo. A lição é validar empiricamente, não assumir que "rede neural ≥ baseline".
-- **`uv` + `ruff` + `ty` + `pytest`** entregam um loop de desenvolvimento rápido: instalação reprodutível em segundos, lint+format unificados e type-check moderno sem o overhead histórico do mypy. Combinado com `Makefile` curto e Dockerfile com `mlflow-skinny` + `torch+cpu`, a imagem final cabe em ~1GB.
-- **Lucro líquido como métrica primária** foi o que mais mudou as decisões — modelos com AUC competitivo (Random Forest, XGBoost) ficaram para trás em lucro, evidenciando que AUC e valor de negócio **não são intercambiáveis** e que a curva de threshold tem que ser otimizada explicitamente, não herdada do default 0.5.
+Vale comentar por que era difícil "vencer" a Regressão Logística aqui: o padrão de churn nesse dataset é, por natureza, bastante **linear**. Variáveis como tipo de contrato, tempo de casa e forma de pagamento explicam grande parte do comportamento por si só. Quando o sinal já é linear, modelos mais complexos não têm de onde tirar ganho extra; eles só adicionam variabilidade. Por isso o resultado convergiu para o modelo mais simples.
+
+### Principais aprendizados
+
+- **A métrica de negócio mudou todas as decisões.** Modelos com boa AUC (Random Forest, XGBoost) acabaram piores em lucro. Olhar só métricas técnicas teria levado a uma escolha errada.
+- **Mais complexidade nem sempre ajuda.** A rede neural é uma ferramenta poderosa, mas em dataset pequeno com sinal linear ela empata com a Regressão Logística. Vale validar empiricamente em vez de assumir que "rede neural é melhor".
+- **Empacotar o pré-processamento junto com o modelo** (usando `sklearn.Pipeline`) elimina uma classe inteira de bugs em que o código de treino e o código de produção fazem transformações ligeiramente diferentes.
+- **MLflow + DagsHub** funcionam bem como repositório de modelos sem precisar montar infraestrutura própria. Só é importante "fixar" a versão do modelo usada em produção para evitar surpresas.
+- A combinação **`uv` + `ruff` + `pytest` + Docker** deixou o ciclo de desenvolvimento bem rápido e a imagem final em ~1GB, sem grande esforço de otimização.
 
 ## Sobre o projeto
 
 | Item | Detalhe |
 |------|---------|
-| Curso | FIAP — Machine Learning Engineering |
+| Curso | FIAP, Machine Learning Engineering |
 | Fase | 1 |
-| Dataset | [Telco Customer Churn — Kaggle](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) |
+| Dataset | [Telco Customer Churn (Kaggle)](https://www.kaggle.com/datasets/blastchar/telco-customer-churn) |

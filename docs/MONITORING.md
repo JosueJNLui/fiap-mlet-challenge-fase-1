@@ -76,7 +76,7 @@ Logs em **stdout em JSON** já estão prontos para serem coletados por qualquer 
 
 Métricas que detectam **degradação do modelo** independente da infraestrutura.
 
-### Data drift — KS test em features-chave
+### Data drift: KS test em features-chave
 
 Variáveis com maior poder discriminativo identificadas em `notebooks/eda.ipynb`:
 
@@ -94,7 +94,7 @@ Variáveis com maior poder discriminativo identificadas em `notebooks/eda.ipynb`
 ### Prediction drift
 
 - **Métrica:** distribuição de `churn_probability` retornada (mediana, p25, p75) por dia.
-- **Baseline:** distribuição em validação (mediana ~0.27, alinhada com taxa real de churn).
+- **Baseline:** distribuição esperada em validação com mediana próxima da taxa real de churn (26,6% no conjunto modelado, ver Model Card §3). Adotamos `~0.27` como referência narrativa.
 - **Alerta:** mediana fora de [0.18, 0.36] por 3 dias consecutivos.
 
 ### Performance (requer rótulos reais)
@@ -106,8 +106,8 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 | ROC-AUC | 0.849 | < 0.80 |
 | PR-AUC | 0.672 | < 0.60 |
 | F1 (churn) | 0.560 | < 0.50 |
-| Recall (churn) | 0.96 | < 0.90 |
-| Precision (churn) | 0.40 | < 0.30 |
+| Recall (churn) | 0.960 | < 0.90 |
+| Precision (churn) | 0.395 | < 0.30 |
 
 **Cálculo:** comparar predição do dia D (probabilidade ≥ threshold) com churn real em D+90.
 
@@ -119,7 +119,7 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 
 | Métrica | Definição | Fonte |
 |---|---|---|
-| Lucro líquido acumulado | `TP × R$500 − FP × R$100 − FN × R$500` | feedback loop (CRM → DW) |
+| Lucro líquido acumulado | `TP × (LTV − Custo) − FP × Custo − FN × LTV` (LTV=R$ 500, Custo=R$ 100) | feedback loop (CRM → DW) |
 | Custo de FP mensal | nº FP × R$ 100 | idem |
 | Churn evitado | nº TP × R$ 500 (ações de retenção bem-sucedidas) | idem |
 | Cobertura de campanha | predições com label=`true` por mês | API logs |
@@ -140,10 +140,10 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 
 | Severidade | Critério | Canal | Tempo de resposta |
 |---|---|---|---|
-| **P1 — crítico** | API indisponível, taxa 5xx > 5%, modelo retorna NaN/erro | PagerDuty | < 15 min |
-| **P2 — alto** | Latência p95 > 300ms, ROC-AUC abaixo de baseline, drift em ≥3 features | Slack `#ml-ops` | < 1h |
-| **P3 — médio** | Drift parcial (1-2 features), prediction drift, lucro mensal abaixo do alvo | Slack `#ml-ops` | < 1 dia |
-| **P4 — info** | Mudanças notáveis sem ação imediata (novos enums, primeiro alerta de drift) | Email semanal | revisão de rotina |
+| **P1 (crítico)** | API indisponível, taxa 5xx > 5%, modelo retorna NaN/erro | PagerDuty | < 15 min |
+| **P2 (alto)** | Latência p95 > 300ms, ROC-AUC abaixo de baseline, drift em ≥3 features | Slack `#ml-ops` | < 1h |
+| **P3 (médio)** | Drift parcial (1-2 features), prediction drift, lucro mensal abaixo do alvo | Slack `#ml-ops` | < 1 dia |
+| **P4 (info)** | Mudanças notáveis sem ação imediata (novos enums, primeiro alerta de drift) | Email semanal | revisão de rotina |
 
 ---
 
@@ -153,7 +153,7 @@ Reavaliação **mensal** em amostra rotulada (clientes com janela de observaçã
 
 1. Verificar carga (req/s) e CPU dos pods.
 2. Escalar horizontalmente (mais réplicas).
-3. Se persistir: investigar bottleneck — geralmente preprocessing (alocação de DataFrame por request) ou import de PyTorch (não deveria, é só forward).
+3. Se persistir: investigar bottleneck. Geralmente é preprocessing (alocação de DataFrame por request) ou import de PyTorch (não deveria, é só forward).
 4. Considerar habilitar **batch micro-batching** se throughput passar a justificar.
 
 ### Cenário B: Taxa 5xx > 1%
@@ -212,6 +212,6 @@ A camada técnica (§2) já está pronta. As demais demandam trabalho:
 
 ## 8. Documentos Relacionados
 
-- [`MODEL_CARD.md`](MODEL_CARD.md) — performance esperada, limitações, cenários de falha.
-- [`ARCHITECTURE_DEPLOY.md`](ARCHITECTURE_DEPLOY.md) — arquitetura e SLOs de infra.
-- [`../README.md`](../README.md) — setup e uso da API.
+- [`MODEL_CARD.md`](MODEL_CARD.md): performance esperada, limitações, cenários de falha.
+- [`ARCHITECTURE_DEPLOY.md`](ARCHITECTURE_DEPLOY.md): arquitetura e SLOs de infra.
+- [`../README.md`](../README.md): setup e uso da API.

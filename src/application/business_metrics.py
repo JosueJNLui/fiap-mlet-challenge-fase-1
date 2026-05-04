@@ -1,4 +1,4 @@
-"""Business metrics for churn prediction — single source of truth.
+"""Métricas de negócio para previsão de churn (fonte única da verdade).
 
 Centraliza o cálculo de lucro líquido e a busca de threshold ótimo
 compartilhados entre os notebooks de EDA, modelagem e comparação.
@@ -81,7 +81,7 @@ def calculate_metrics(
 ) -> dict | tuple[dict, np.ndarray]:
     """Devolve 6 métricas técnicas + 4 de negócio + threshold para um corte de probabilidade.
 
-    Quando `return_confusion_matrix=True`, retorna `(dict, cm)` — preserva o uso atual
+    Quando `return_confusion_matrix=True`, retorna `(dict, cm)`, preserva o uso atual
     do `notebooks/modeling.ipynb` que precisa da matriz para visualizações.
     """
     y_pred = (y_proba >= threshold).astype(int)

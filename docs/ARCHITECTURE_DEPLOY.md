@@ -23,7 +23,7 @@
 
 - **Batch diário pré-computado:** descartado, staleness inaceitável quando cliente acabou de mudar de plano ou abrir ticket.
 - **Streaming (Kafka + Flink/Faust):** descartado, overhead injustificado para o volume esperado e o caso de uso. Reabrir se chegarmos a >5k req/s sustentados.
-- **Serverless (AWS Lambda / Cloud Functions):** descartável, mas o cold start do PyTorch (~2-3s para carregar `torch` + scaler) é proibitivo para SLA de 200ms. Container com modelo já carregado em memória vence.
+- **Serverless (AWS Lambda / Cloud Functions):** descartável, mas o cold start (download do modelo via MLflow + carga em memória) é proibitivo para SLA de 200ms — adicional de ~1-3s por invocação fria, ainda mais alto se o flavor alternativo `pytorch` estiver ativo (importa `torch`). Container com modelo já carregado em memória vence.
 
 ---
 
@@ -61,9 +61,7 @@ sequenceDiagram
     participant API as FastAPI
     participant V as Pydantic
     participant P as ChurnPredictor
-    participant Pre as preprocessing
-    participant Sc as StandardScaler
-    participant M as MLP (PyTorch)
+    participant Pipe as sklearn.Pipeline<br/>(FeatureEngineer + Scaler + LogReg)
 
     C->>API: POST /predict {payload Telco}
     API->>V: validate(payload)
@@ -71,16 +69,17 @@ sequenceDiagram
         V-->>C: 422 Unprocessable Entity
     end
     V->>P: predict(dict)
-    P->>Pre: preprocess_one(dict)
-    Pre-->>P: DataFrame[28 features]
-    P->>Sc: transform()
-    Sc-->>P: array[28]
-    P->>M: forward(tensor)
-    M-->>P: logit
-    P->>P: sigmoid + threshold
+    P->>Pipe: predict_proba(DataFrame[1])
+    Pipe-->>P: probabilidade
+    P->>P: aplicar threshold
     P-->>API: PredictionResult
     API-->>C: 200 {prob, label, threshold, version, request_id}
 ```
+
+> **Modo alternativo (`MODEL_FLAVOR=pytorch`):** o ChurnPredictor invoca
+> `preprocess_one` → `StandardScaler.transform` → `MLP.forward` → `sigmoid` →
+> threshold, com scaler carregado como artefato separado (`scaler.joblib`).
+> Implementação em `src/application/predictor.py:97-120`.
 
 ---
 
@@ -91,8 +90,8 @@ sequenceDiagram
 | API | FastAPI 0.136+ | Async-first, OpenAPI nativo, Pydantic v2 integrado |
 | Validação | Pydantic v2 | Schema-first, valida enums/ranges automaticamente |
 | Servidor | uvicorn | ASGI padrão, integra bem com workers e Kubernetes |
-| Modelo | PyTorch CPU | MLP leve, não justifica GPU; índice `pytorch-cpu` no `pyproject.toml` reduz imagem |
-| Pré-processamento | sklearn `StandardScaler` + transformações custom | Reprodutível, single source of truth em `EXPECTED_FEATURE_ORDER` |
+| Modelo | scikit-learn `Pipeline` (LogReg) | Empacotada como artefato único no MLflow (FeatureEngineer + StandardScaler + LogisticRegression). PyTorch CPU disponível como alternativa A/B-testável (MLP); índice `pytorch-cpu` no `pyproject.toml` mantém a imagem enxuta |
+| Pré-processamento | `FeatureEngineer` + `StandardScaler` integrados na Pipeline (flavor sklearn) | Single source of truth em `EXPECTED_FEATURE_ORDER`; reusado pelo flavor pytorch via `preprocess_one` + scaler externo |
 | Registry | MLflow + DagsHub | Versionamento de modelo + scaler como artefato no mesmo run |
 | Container | `python:3.13-slim` + `uv sync --frozen --no-dev` | ~1GB final (vs ~3.5GB defaults) |
 | Logs | JSON estruturado em stdout | Compatível com qualquer collector (ELK, Loki, CloudWatch) |
@@ -140,10 +139,10 @@ stateDiagram-v2
 
 - **Horizontal:** API é stateless. Aumentar réplicas atrás do Load Balancer.
   - Dimensionar por `CPU > 70%` ou `latência p95 > 150ms`.
-  - Cada pod consome ~300MB de RAM (PyTorch + modelo carregado).
-- **Vertical:** desnecessário para o modelo atual (MLP de 8 neurônios).
+  - Cada pod consome ~150-200MB de RAM no flavor `sklearn` (Pipeline + libs); ~300MB no flavor `pytorch` (importa `torch`).
+- **Vertical:** desnecessário para o modelo atual (LogReg, ou MLP de 8 neurônios no flavor alternativo).
 - **Modelo carregado em memória por pod:** evita rede crítica em hot path.
-- **Cold start:** ~3-5s (PyTorch import + load do MLflow). Mitigado por:
+- **Cold start:** ~2-3s no flavor `sklearn` (download MLflow + load da Pipeline); ~3-5s no flavor `pytorch` (adicional de import `torch`). Mitigado por:
   - Readiness probe só responde após `lifespan` concluir.
   - Pre-warm em rollouts (Kubernetes `minReadySeconds`).
 
@@ -177,9 +176,9 @@ Toda configuração é externalizada (12-factor). Defaults em `src/config.py`. V
 |---|---|
 | `MLFLOW_TRACKING_URI` | Endpoint do MLflow (DagsHub por padrão) |
 | `MLFLOW_TRACKING_USERNAME` / `_PASSWORD` | Credenciais (SecretStr, nunca logadas) |
-| `MODEL_FLAVOR` | `sklearn` (LogReg, default) ou `pytorch` (MLP, alternativa A/B-testável) |
-| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico. **Sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `3`; para `MODEL_FLAVOR=pytorch`, `Churn_MLP_Final_Production` / `12`) |
-| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2080` para LogReg; `0.20303` para o MLP A/B) |
+| `MODEL_FLAVOR` | `sklearn` (LogReg empacotada como Pipeline, **default em produção**); `pytorch` (MLP) é alternativa A/B-testável opt-in |
+| `MODEL_NAME` / `MODEL_VERSION` | Pinning determinístico. **Sempre fixar `MODEL_VERSION` em produção** (defaults: `Churn_LogReg_Final_Production` / `3` em produção; para `MODEL_FLAVOR=pytorch`, `Churn_MLP_Final_Production` / `12`) |
+| `PREDICTION_THRESHOLD` | Threshold de negócio (default `0.2080` para LogReg em produção; `0.20303` para o MLP A/B) |
 | `LOAD_MODEL_ON_STARTUP` | `false` apenas para dev/debug |
 | `DOCS_URL` | Vazio em prod para desabilitar Swagger sem alterar código |
 

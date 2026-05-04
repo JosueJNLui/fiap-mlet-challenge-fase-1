@@ -154,7 +154,7 @@ Os defaults ficam em [`../deploy/helm-chart/values.yaml`](../deploy/helm-chart/v
 | `image.repository` / `image.tag` | Imagem Docker publicada no registry |
 | `replicaCount` | Número fixo de réplicas quando HPA está desativado |
 | `autoscaling.enabled` | Ativa/desativa HPA |
-| `startupProbe` | Dá tempo para importar PyTorch e carregar artefatos do MLflow |
+| `startupProbe` | Dá tempo para baixar e carregar o modelo do MLflow no startup |
 | `readinessProbe` | Remove o pod do tráfego quando `/health` não responde |
 | `livenessProbe` | Reinicia o container se a API travar |
 | `env.MODEL_VERSION` | Versão pinada do modelo em produção |
@@ -272,10 +272,10 @@ mantendo a imagem Docker imutável.
 | `MLFLOW_TRACKING_URI` | `https://dagshub.com/...mlflow` | Registry remoto do DagsHub |
 | `MLFLOW_TRACKING_USERNAME` | `JosueJNLui` | Usuário usado no Basic Auth quando necessário |
 | `MLFLOW_TRACKING_PASSWORD` | secret | Nunca versionar em texto puro |
-| `MODEL_FLAVOR` | `sklearn` | `sklearn` (LogReg, default) ou `pytorch` (MLP A/B-testável, default `Churn_MLP_Final_Production` v12) |
-| `MODEL_NAME` | `Churn_LogReg_Final_Production` | Nome registrado no MLflow (default LogReg). Para `pytorch`, usar `Churn_MLP_Final_Production` |
-| `MODEL_VERSION` | `3` | Pinning determinístico recomendado em produção (LogReg v3; MLP v12) |
-| `PREDICTION_THRESHOLD` | `0.2080` | Threshold de negócio (LogReg; MLP usa `0.20303`) |
+| `MODEL_FLAVOR` | `sklearn` | **Produção:** `sklearn` (LogReg empacotada como Pipeline). `pytorch` (MLP) é alternativa A/B-testável opt-in |
+| `MODEL_NAME` | `Churn_LogReg_Final_Production` | Nome registrado no MLflow. Para flavor `pytorch`, usar `Churn_MLP_Final_Production` |
+| `MODEL_VERSION` | `3` | Pinning determinístico recomendado em produção (LogReg v3 servida; MLP v12 como alternativa) |
+| `PREDICTION_THRESHOLD` | `0.2080` | Threshold de negócio em produção (LogReg). Para o MLP A/B usar `0.20303` |
 | `LOAD_MODEL_ON_STARTUP` | `true` | Em produção deve permanecer `true` |
 
 ## Saúde, Observabilidade e Operação

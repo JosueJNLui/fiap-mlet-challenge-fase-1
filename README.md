@@ -4,6 +4,13 @@
 
 Previsão de churn de clientes com base no dataset Telco Customer Churn. API REST em FastAPI servindo, por padrão, a **Logistic Regression (sklearn)** registrada no MLflow do DagsHub. O **MLP (PyTorch)** fica versionado como alternativa A/B-testável, selecionável via `MODEL_FLAVOR=pytorch` no `.env` (ver [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) §7.1).
 
+## Links rápidos
+
+- 🎥 **Vídeo de apresentação (STAR):** <https://www.youtube.com/watch?v=30s7Az1HCok>
+- 🚀 **API em produção (AWS):** <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com>
+  - Swagger UI: <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/docs>
+  - ReDoc: <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/redoc>
+
 ## Arquitetura do sistema
 
 API estruturada em camadas (DDD enxuto):
@@ -58,11 +65,11 @@ flowchart LR
 
 Com a API rodando, abra um dos endpoints abaixo no browser:
 
-| URL | Descrição |
-|---|---|
-| <http://localhost:8000/docs> | Swagger UI: testar endpoints direto do browser (`Try it out`) |
-| <http://localhost:8000/redoc> | ReDoc: documentação narrativa, ideal para leitura |
-| <http://localhost:8000/openapi.json> | Spec OpenAPI 3.1 bruto, p/ gerar clientes (openapi-generator, etc.) |
+| Local | Produção (AWS) | Descrição |
+|---|---|---|
+| <http://localhost:8000/docs> | <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/docs> | Swagger UI: testar endpoints direto do browser (`Try it out`) |
+| <http://localhost:8000/redoc> | <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/redoc> | ReDoc: documentação narrativa, ideal para leitura |
+| <http://localhost:8000/openapi.json> | <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/openapi.json> | Spec OpenAPI 3.1 bruto, p/ gerar clientes (openapi-generator, etc.) |
 
 Cada endpoint expõe `summary`, `description`, exemplos completos de payload e respostas, e modelos documentados para os erros `422` (validação) e `503` (modelo não carregado). Em produção, defina `DOCS_URL=` (vazio) no ambiente para desabilitar a UI sem alterar código.
 

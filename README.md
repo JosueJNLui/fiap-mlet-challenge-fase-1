@@ -10,6 +10,7 @@ Previsão de churn de clientes com base no dataset Telco Customer Churn. API RES
 - 🚀 **API em produção (AWS):** <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com>
   - Swagger UI: <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/docs>
   - ReDoc: <http://fiap-mlet-1033987737.us-east-1.elb.amazonaws.com/redoc>
+- 📊 **MLflow (DagsHub):** <https://dagshub.com/JosueJNLui/fiap-mlet-challenge-fase-1.mlflow>
 
 ## Arquitetura do sistema
 
